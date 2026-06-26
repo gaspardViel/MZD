@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 1 — Connaissance paramétrique vs contexte injecté</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 1 · Claude Code × MZD</p>
+  <h1>Connaissance paramétrique vs contexte injecté</h1>
+  <p class="lesson-subtitle">
+    Pourquoi Claude ne "sait" pas ce qui se passe à la MZD — et comment y remédier avec des skills bien conçus.
+  </p>
+
+  <!-- ─── 1. LE PROBLÈME FONDAMENTAL ──────────────────────────────────── -->
+  <h2>Le problème fondamental</h2>
+
+  <p>
+    Claude est entraîné sur des données collectées jusqu'à une date de coupure.
+    Après cette date, son savoir est figé — c'est ce qu'on appelle la
+    <strong>connaissance paramétrique</strong> : ce que le modèle porte dans
+    ses poids, gravé à l'entraînement.
+  </p>
+
+  <p>
+    Or la MZD produit des données nouvelles chaque jour : des tâches dans
+    Notion, des messages dans Slack, des fichiers dans Drive. Ces données
+    n'ont jamais été dans les données d'entraînement de Claude. Il ne les
+    connaît pas. Il ne peut pas les deviner.
+  </p>
+
+  <div class="callout warn">
+    <strong>Règle n°1 — Matt Pocock</strong>
+    Ne jamais faire confiance à la connaissance paramétrique du modèle
+    pour des données qui changent dans le temps.
+    Toujours <em>injecter</em> le contexte réel depuis les vrais outils.
+  </div>
+
+  <!-- ─── 2. LES DEUX TYPES DE CONNAISSANCE ────────────────────────────── -->
+  <h2>Les deux types de connaissance dans un LLM</h2>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">❌ Connaissance paramétrique</div>
+      <div class="compare-body">
+        Ce que le modèle a appris à l'entraînement.<br /><br />
+        Figée. Peut être périmée. Ne contient <em>rien</em>
+        sur les données internes de la MZD.<br /><br />
+        Utile pour : raisonner, écrire du code,
+        résumer un texte qu'on lui donne.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">✅ Contexte injecté</div>
+      <div class="compare-body">
+        Ce que le skill place dans la fenêtre de contexte
+        au moment de l'appel.<br /><br />
+        Frais. Vient des vrais outils (Notion, Slack, Drive)
+        via les MCP tools.<br /><br />
+        Utile pour : raisonner sur l'état actuel de la MZD.
+      </div>
+    </div>
+  </div>
+
+  <p>
+    La puissance de Claude n'est pas dans ce qu'il "sait" — elle est dans
+    sa capacité à <em>raisonner</em> à partir du contexte qu'on lui fournit.
+    L'ingénierie des skills consiste précisément à construire ce contexte
+    avec soin, avant de lui poser la moindre question.
+  </p>
+
+  <!-- ─── 3. ILLUSTRATION CONCRÈTE MZD ─────────────────────────────────── -->
+  <h2>Illustration : deux façons de demander le brief de la semaine</h2>
+
+  <h3>La mauvaise façon</h3>
+
+  <pre><code># ❌ Le skill fait confiance au savoir paramétrique
+"Claude, quelles sont les priorités de la MZD cette semaine ?"</code></pre>
+
+  <p>
+    Claude va inventer une réponse plausible — ou admettre qu'il ne sait pas.
+    Dans les deux cas, c'est inutile. Il n'a pas accès aux tâches Notion,
+    aux messages Slack, ni aux documents Drive de la MZD.
+  </p>
+
+  <h3>La bonne façon — le pattern "fetch-first"</h3>
+
+  <pre><code># ✅ Le skill injecte le contexte avant de raisonner
+
+## Étape 1 — Fetch les tâches Notion de cette semaine
+→ mcp__Notion__notion-query-database-view(...)
+
+## Étape 2 — Fetch les messages Slack récents
+→ mcp__Slack__slack_read_channel(...)
+
+## Étape 3 — Raisonner sur ce contexte réel
+"Sur la base de ces tâches et messages, produis un brief
+ de coordination pour l'équipe MZD."</code></pre>
+
+  <div class="callout">
+    <strong>Le pattern "fetch-first"</strong>
+    Tout skill Claude Code qui travaille avec des données organisationnelles
+    doit commencer par <em>fetcher</em> l'état réel depuis les outils, puis
+    seulement raisonner. Ce séquençage est la colonne vertébrale de
+    l'ingénierie des skills à la Matt Pocock.
+  </div>
+
+  <!-- ─── 4. POURQUOI CE PATTERN FONCTIONNE ─────────────────────────────── -->
+  <h2>Pourquoi ce pattern fonctionne</h2>
+
+  <p>
+    Les MCP tools (Notion, Slack, Drive) placent leurs résultats directement
+    dans la <strong>fenêtre de contexte</strong> de Claude. À ce moment,
+    Claude a "sous les yeux" des données réelles et récentes — il peut enfin
+    raisonner de façon fiable.
+  </p>
+
+  <p>
+    C'est le même principe qu'un consultant externe à qui vous donnez le
+    dossier avant de lui poser des questions : sans le dossier, il improvise ;
+    avec le dossier, il raisonne.
+  </p>
+
+  <p>
+    La structure d'un bon skill MZD suit toujours cette logique :
+  </p>
+
+  <pre><code># Structure d'un skill MZD robuste
+
+1. FETCH   — Lire l'état réel depuis Notion / Slack / Drive
+2. REASON  — Demander à Claude de raisonner sur ce contexte
+3. ACT     — Déclencher une action (créer une tâche, envoyer un message…)</code></pre>
+
+  <!-- ─── 5. CE QUE LE LLM FAIT BIEN ───────────────────────────────────── -->
+  <h2>Ce que le LLM fait bien (et qu'on garde)</h2>
+
+  <p>
+    La connaissance paramétrique reste utile pour :
+  </p>
+
+  <ul style="padding-left: 1.5rem; margin-bottom: 1.2rem;">
+    <li>Reformuler, synthétiser, rédiger — à partir du contexte injecté</li>
+    <li>Appliquer des raisonnements généraux (priorisation, résumé, classification)</li>
+    <li>Comprendre des instructions en langage naturel</li>
+    <li>Générer du code ou des structures à partir de specs</li>
+  </ul>
+
+  <p>
+    La combinaison gagnante pour la MZD :
+    <em>les outils fetchtent les données, Claude raisonne dessus.</em>
+  </p>
+
+  <!-- ─── 6. QUIZ ────────────────────────────────────────────────────────── -->
+  <div class="quiz">
+    <h3>Quiz — vérifie ta compréhension</h3>
+
+    <div class="quiz-question">
+      Un membre de l'équipe MZD écrit : <em>"Claude, dis-moi quelles tâches
+      Notion sont en retard."</em> — Quelle est la limite principale de cette
+      approche ?
+    </div>
+
+    <ul class="quiz-options" id="q1-options">
+      <li>
+        <button onclick="checkAnswer('q1', this, false)">
+          Claude ne comprend pas le français
+        </button>
+      </li>
+      <li>
+        <button onclick="checkAnswer('q1', this, true)">
+          Claude n'a pas accès aux données Notion — sa connaissance
+          paramétrique ne contient pas l'état actuel de la base de données
+        </button>
+      </li>
+      <li>
+        <button onclick="checkAnswer('q1', this, false)">
+          Notion n'est pas compatible avec Claude Code
+        </button>
+      </li>
+      <li>
+        <button onclick="checkAnswer('q1', this, false)">
+          La question est trop courte pour que Claude raisonne bien
+        </button>
+      </li>
+    </ul>
+
+    <div class="quiz-feedback" id="q1-feedback"></div>
+  </div>
+
+  <div class="quiz">
+    <h3>Quiz — séquençage</h3>
+
+    <div class="quiz-question">
+      Dans le pattern "fetch-first", quelle est la bonne séquence pour
+      un skill qui envoie un résumé hebdomadaire sur Slack ?
+    </div>
+
+    <ul class="quiz-options" id="q2-options">
+      <li>
+        <button onclick="checkAnswer('q2', this, false)">
+          Raisonner → Fetcher Notion → Envoyer sur Slack
+        </button>
+      </li>
+      <li>
+        <button onclick="checkAnswer('q2', this, true)">
+          Fetcher Notion + Slack → Raisonner → Envoyer sur Slack
+        </button>
+      </li>
+      <li>
+        <button onclick="checkAnswer('q2', this, false)">
+          Envoyer sur Slack → Fetcher Notion → Raisonner
+        </button>
+      </li>
+      <li>
+        <button onclick="checkAnswer('q2', this, false)">
+          Fetcher Notion → Envoyer sur Slack → Raisonner
+        </button>
+      </li>
+    </ul>
+
+    <div class="quiz-feedback" id="q2-feedback"></div>
+  </div>
+
+  <!-- ─── 7. SOURCE PRIMAIRE ─────────────────────────────────────────────── -->
+  <h2>Source primaire recommandée</h2>
+
+  <p>
+    Lis le fichier
+    <a href="../.agents/skills/writing-great-skills/SKILL.md">
+      <code>.agents/skills/writing-great-skills/SKILL.md</code>
+    </a>
+    dans ce repo. C'est la définition de référence de l'ingénierie des skills
+    chez Matt Pocock. Porte attention à la section sur la
+    <em>connaissance paramétrique</em> et à la règle
+    "Never trust your parametric knowledge."
+  </p>
+
+  <!-- ─── 8. PROCHAINE ÉTAPE ─────────────────────────────────────────────── -->
+  <h2>Prochaine étape</h2>
+
+  <p>
+    <strong>Leçon 2 (à venir) :</strong> Écrire ton premier skill MZD
+    — un SKILL.md qui fetche les tâches Notion non assignées et propose
+    une distribution à l'équipe.
+  </p>
+
+  <!-- ─── ASK BOX ────────────────────────────────────────────────────────── -->
+  <div class="ask-box">
+    <strong>Tu as une question ?</strong> Pose-la à Claude directement dans
+    le chat. Il est ton enseignant pour cette session — n'importe quel point
+    flou, exemple supplémentaire ou clarification, il peut t'aider.
+  </div>
+
+  <nav class="lesson-nav">
+    <span>← Début du parcours</span>
+    <span><a href="0002-ecrire-son-premier-skill-mzd.html">Leçon 2 →</a></span>
+  </nav>
+
+</article>
+
+<script>
+  function checkAnswer(questionId, btn, isCorrect) {
+    // Disable all buttons for this question
+    const options = document.getElementById(questionId + '-options');
+    options.querySelectorAll('button').forEach(b => {
+      b.disabled = true;
+      b.classList.remove('correct', 'wrong');
+    });
+
+    btn.classList.add(isCorrect ? 'correct' : 'wrong');
+
+    const feedback = document.getElementById(questionId + '-feedback');
+    feedback.classList.add('visible');
+
+    if (isCorrect) {
+      feedback.classList.add('correct');
+      feedback.classList.remove('wrong');
+      feedback.textContent = '✓ Exactement. Claude n\'a aucune connaissance des données internes de la MZD — tout doit être injecté via les MCP tools.';
+    } else {
+      feedback.classList.add('wrong');
+      feedback.classList.remove('correct');
+      feedback.textContent = '✗ Pas tout à fait. Le vrai problème est que Claude ne peut pas accéder aux données Notion sans un appel MCP explicite — la connaissance paramétrique ne suffit pas.';
+    }
+  }
+</script>
+</body>
+</html>
