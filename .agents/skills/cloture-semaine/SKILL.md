@@ -22,8 +22,8 @@ sont confirmées ou marquées "déjà traité".
 
 ## Étape 2 — Fetch la todo liste programmation
 
-Appelle `notion-fetch` sur la page Todo list programmation
-(https://app.notion.com/p/78fe668be5574b86b723dc95fcd60cf9).
+Appelle `notion-fetch` sur la page "Todo list programmation".
+→ URL dans reference/notion-structure.md
 
 Identifie uniquement :
 - Les tâches ouvertes (non cochées) avec une deadline dans les 14 prochains jours
@@ -58,7 +58,12 @@ Message : 15 lignes maximum, ton direct et bienveillant.
 
 ## Étape 4 — Envoyer sur Slack
 
-Appelle `slack_send_message` sur le canal #info-generale (C02085Z5CHL)
-avec le message composé à l'étape 3.
+Avant d'envoyer, montre le message à l'utilisateur et attends sa confirmation.
+
+Envoie sur #échanges-ca-équipe (canal CA).
+→ ID dans reference/slack-channels.md
+
+Option : proposer à l'utilisateur de créer les tickets Notion 🔴 correspondants
+aux blocages traités (appelle notion-create-pages si l'utilisateur répond "oui").
 
 Critère : confirmation d'envoi reçue de l'API Slack.

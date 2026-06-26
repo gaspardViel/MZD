@@ -6,6 +6,12 @@ description: >
   Utilise chaque vendredi ou avant toute réunion de coordination.
 ---
 
+## Contexte à lire avant de commencer
+
+Lis ces deux fichiers pour résoudre les noms en IDs :
+- `reference/slack-channels.md` — canaux Slack et leurs IDs
+- `reference/notion-structure.md` — bases Notion et leurs IDs
+
 ## Étape 1 — Fetch les tâches Notion
 
 Appelle `notion-query-database-view` sur la base "Tâches MZD".
@@ -15,8 +21,9 @@ est dans le contexte.
 
 ## Étape 2 — Fetch les messages Slack
 
-Appelle `slack_read_channel` sur #info-generale (C02085Z5CHL)
-pour les 3 derniers jours.
+Appelle `slack_read_channel` sur #échanges-ca-équipe.
+→ ID dans reference/slack-channels.md
+Pour les 3 derniers jours.
 Identifie : décisions prises, missions sans responsable, blocages exprimés.
 Continue quand les fils pertinents sont dans le contexte.
 
@@ -54,7 +61,8 @@ a) Appelle `notion-create-pages` dans la base "Tâches MZD" :
    - Statut : "À débloquer"
    - Description : contexte du blocage et action attendue
 
-b) Appelle `slack_send_message` sur #info-generale (C02085Z5CHL) :
+b) Appelle `slack_send_message` sur #échanges-ca-équipe
+   (→ ID dans reference/slack-channels.md) :
    - 3 lignes maximum
    - Format : "🔴 *[Nom du blocage]* — [responsable] · Action attendue : [quoi] · [lien Notion]"
 

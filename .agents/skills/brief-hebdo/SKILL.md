@@ -6,17 +6,24 @@ description: >
   Notion et des échanges Slack de la semaine.
 ---
 
+## Contexte à lire avant de commencer
+
+- `reference/slack-channels.md` — IDs des canaux Slack
+- `reference/notion-structure.md` — IDs des bases Notion
+
 ## Étape 1 — Fetch les tâches Notion de la semaine
 
-Appelle `notion-query-database-view` sur la base de données
-"Tâches MZD". Filtre par : date d'échéance dans les 7 prochains jours,
+Appelle `notion-query-database-view` sur la base de données "Tâches MZD".
+→ ID dans reference/notion-structure.md
+Filtre par : date d'échéance dans les 7 prochains jours,
 ou statut "En cours". Continue quand chaque tâche avec son statut,
 son assigné et sa date est dans le contexte.
 
 ## Étape 2 — Fetch les messages Slack récents
 
-Appelle `slack_read_channel` sur le canal principal de la MZD
-pour les 3 derniers jours. Continue quand les fils importants
+Appelle `slack_read_channel` sur #échanges-ca-équipe.
+→ ID dans reference/slack-channels.md
+Pour les 3 derniers jours. Continue quand les fils importants
 (décisions, blocages, demandes) sont identifiés dans le contexte.
 
 ## Étape 3 — Synthétiser le brief

@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 5 — Ancrer les skills dans la réalité MZD</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 5 · Claude Code × MZD</p>
+  <h1>Ancrer les skills dans la réalité MZD</h1>
+  <p class="lesson-subtitle">
+    Reference docs — documenter la structure Notion et Slack une fois,
+    citer partout, ne plus jamais hardcoder un ID dans un skill.
+  </p>
+
+  <!-- ─── RAPPEL ──────────────────────────────────────────────────────────── -->
+  <h2>Où on en est</h2>
+
+  <p>
+    Tu as maintenant quatre skills opérationnels :
+    <code>/brief-hebdo</code>, <code>/brief-hebdo-actif</code>,
+    <code>/coordination-mzd</code> et <code>/cloture-semaine</code>.
+    Et si tu regardes de près leurs fichiers SKILL.md, tu remarques quelque chose.
+  </p>
+
+  <pre><code>## Étape 2 — Fetch les messages Slack récents
+
+Appelle slack_read_channel sur le canal #info-generale
+(<strong>C02085Z5CHL</strong>), les 3 derniers jours.</code></pre>
+
+  <p>
+    <code>C02085Z5CHL</code>. Un ID opaque, gravé en dur dans le texte.
+    Si demain ce canal est renommé, archivé, ou remplacé par un autre —
+    ce skill est cassé. Et il faut se souvenir de l'aller corriger à la main.
+  </p>
+
+  <p>
+    Ce n'est pas un problème de code. C'est un problème de
+    <strong>connaissance tribale</strong> : l'ID vit dans les skills
+    au lieu de vivre dans un endroit prévu pour ça.
+  </p>
+
+  <!-- ─── 1. CHAQUE ID HARDCODÉ EST UN BUG FUTUR ───────────────────────── -->
+  <h2>1. Chaque ID hardcodé est un bug futur</h2>
+
+  <p>
+    La règle d'or de l'ingénierie des skills Matt Pocock s'applique ici :
+    ce que Claude doit <em>chercher</em> dans le monde réel ne doit pas
+    être <em>fixé</em> dans le texte du skill.
+  </p>
+
+  <p>
+    La leçon 1 a établi que la connaissance figée est dangereuse — le modèle
+    peut inventer des données qu'il ne connaît pas. La même logique s'applique
+    à la structure de ton organisation.
+  </p>
+
+  <div class="callout warn">
+    <strong>Danger</strong><br />
+    <code>C02085Z5CHL</code> dans un SKILL.md, c'est de la connaissance
+    figée sur ta propre infrastructure. Elle se désynchro­nise dès que
+    tu touches à Slack.
+  </div>
+
+  <p>Voici ce qui peut arriver sans reference docs :</p>
+
+  <ul>
+    <li>Le canal #info-generale est renommé → skill silencieusement cassé</li>
+    <li>Une nouvelle base Notion est créée → les skills ignorent son existence</li>
+    <li>Un nouveau membre du CA veut écrire un skill → il ne sait pas où trouver les IDs</li>
+    <li>Tu relies un skill à Slack six mois plus tard → tu dois retrouver l'ID à la main</li>
+  </ul>
+
+  <p>
+    La solution n'est pas de memoriser les IDs — c'est de les
+    <strong>documenter une fois</strong> dans un fichier prévu à cet effet,
+    et de <strong>citer ce fichier</strong> depuis chaque skill qui en a besoin.
+  </p>
+
+  <!-- ─── 2. LES REFERENCE DOCS ────────────────────────────────────────── -->
+  <h2>2. Les reference docs</h2>
+
+  <p>
+    Un <strong>reference doc</strong> est un fichier markdown qui documente
+    la structure réelle de ton organisation : canaux Slack, bases Notion,
+    dossiers Drive. Il vit dans le dossier <code>reference/</code> du repo.
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">Sans reference docs</div>
+      <div class="compare-body">
+        L'ID <code>C02085Z5CHL</code> est dans brief-hebdo.<br />
+        L'ID <code>C02085Z5CHL</code> est dans brief-hebdo-actif.<br />
+        L'ID <code>C02085Z5CHL</code> est dans cloture-semaine.<br /><br />
+        3 endroits à corriger si le canal change.
+        Et probablement d'autres qu'on a oubliés.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Avec reference docs</div>
+      <div class="compare-body">
+        <code>reference/slack-channels.md</code> :<br />
+        <em>#info-generale → C02085Z5CHL</em><br /><br />
+        Tous les skills citent ce fichier.<br />
+        1 seul endroit à mettre à jour.<br />
+        Claude lit la référence à chaque exécution.
+      </div>
+    </div>
+  </div>
+
+  <p>
+    La clé : Claude ne mémorise pas les IDs entre les sessions.
+    À chaque invocation du skill, il relit les reference docs
+    depuis le repo — comme il relit les SKILL.md.
+    C'est du contexte injecté, pas de la connaissance figée.
+  </p>
+
+  <div class="callout">
+    <strong>Pattern</strong> : document once, cite everywhere<br /><br />
+    Chaque reference doc est la <em>source de vérité</em>.
+    Les skills ne contiennent que le <em>nom humain</em>
+    du canal ou de la base, et une note pointant vers le fichier de référence.
+  </div>
+
+  <!-- ─── 3. LES REFERENCE DOCS MZD ───────────────────────────────────── -->
+  <h2>3. Les reference docs MZD que tu viens de créer</h2>
+
+  <p>
+    Ces deux fichiers ont été créés dans ton repo à partir de vraies données
+    fetchées depuis Slack et Notion :
+  </p>
+
+  <h3>reference/slack-channels.md</h3>
+
+  <pre><code># Canaux Slack MZD
+
+## Canaux de coordination (CA / équipe)
+
+### #échanges-ca-équipe
+- **ID** : `CJALG7LFM`
+- **Type** : Privé (CA + équipe salariée)
+- **Usage** : Alertes de coordination, échanges CA
+
+### #info-generale
+- **ID** : `C02085Z5CHL`
+- **Type** : Public (tous les bénévoles)
+- **Usage** : Annonces officielles, appels à bénévoles
+
+## Canaux pôles / groupes de travail
+
+### #gt-boutique       → C01QJR5BMTR
+### #gt-informatique   → C04C6C7JJ5N
+### #pôle-boutique     → C0APY566U4R
+...</code></pre>
+
+  <h3>reference/notion-structure.md</h3>
+
+  <pre><code># Structure Notion MZD
+
+## Bases de données
+
+### Tâches MZD
+- **ID** : `16cfbbdc-800b-4601-89ba-c9625112b49d`
+- **Usage** : Toutes les tâches de coordination MZD
+
+## Pages clés
+
+### Todo list programmation
+- **URL** : https://app.notion.com/p/78fe668be5574b86b723dc95fcd60cf9
+- **Usage** : Publications Instagram/stories, événements
+
+## Pattern — ticket d'alerte
+Titre : 🔴 Alerte — [nom]
+Statut : À débloquer
+→ Vérifier idempotence avant de créer</code></pre>
+
+  <p>
+    Ces fichiers sont dans ton repo. Ils évoluent avec la MZD — tu les mets
+    à jour quand un canal est créé, renommé, ou archivé.
+  </p>
+
+  <!-- ─── 4. CITER DEPUIS UN SKILL ──────────────────────────────────────── -->
+  <h2>4. Citer un reference doc depuis un SKILL.md</h2>
+
+  <p>
+    Le changement est simple : dans chaque étape qui utilise un ID,
+    on remplace l'ID par son <em>nom humain</em> et on ajoute une note
+    pointant vers le reference doc.
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">Avant — ID hardcodé</div>
+      <div class="compare-body">
+        <code>Appelle slack_read_channel<br />
+        sur <strong>C02085Z5CHL</strong>,<br />
+        les 3 derniers jours.</code>
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Après — nom cité</div>
+      <div class="compare-body">
+        <code>Appelle slack_read_channel<br />
+        sur <strong>#info-generale</strong>.<br />
+        → ID dans reference/slack-channels.md</code>
+      </div>
+    </div>
+  </div>
+
+  <p>
+    Claude lira <code>reference/slack-channels.md</code> au moment
+    de l'exécution pour résoudre le nom en ID. Si le fichier est à jour,
+    le skill fonctionne — même si l'ID a changé.
+  </p>
+
+  <h3>Règle : quand mettre à jour les reference docs ?</h3>
+
+  <p>
+    Quand un évènement réel se produit dans ton organisation :
+  </p>
+
+  <ul>
+    <li>Un nouveau canal Slack est créé → l'ajouter à <code>reference/slack-channels.md</code></li>
+    <li>Une nouvelle base Notion est mise en place → l'ajouter à <code>reference/notion-structure.md</code></li>
+    <li>Un canal est archivé → mettre "Archivé" dans le fichier, ne pas supprimer (historique)</li>
+    <li>Un ID change (migration Notion) → corriger à un seul endroit</li>
+  </ul>
+
+  <div class="callout warn">
+    <strong>À ne pas faire</strong><br />
+    Ne pas laisser un skill "découvrir" les IDs à chaque exécution
+    via un search Slack ou Notion — c'est lent, coûteux, et fragile.
+    Les reference docs <em>remplacent</em> cette découverte par une
+    documentation explicite et maintenue.
+  </div>
+
+  <!-- ─── 5. MISE À JOUR DES SKILLS ───────────────────────────────────── -->
+  <h2>5. Les skills mis à jour</h2>
+
+  <p>
+    Voici à quoi ressemble <code>brief-hebdo-actif</code> après refactoring
+    pour citer les reference docs :
+  </p>
+
+  <pre><code>---
+name: brief-hebdo-actif
+description: >
+  Produit le brief hebdomadaire MZD ET déclenche des actions
+  (tickets Notion, alertes Slack) sur les blocages détectés.
+---
+
+## Contexte
+
+Avant de commencer, lis :
+- reference/slack-channels.md — IDs des canaux
+- reference/notion-structure.md — IDs des bases et pages
+
+## Étape 1 — Fetch les tâches Notion
+
+Appelle notion-query-database-view sur la base "Tâches MZD".
+→ ID dans reference/notion-structure.md
+
+Filtre : tâches avec échéance dans les 7 prochains jours
+ou statut = "En cours". Inclure tous les champs.
+
+Continue quand les tâches sont dans le contexte.
+
+## Étape 2 — Fetch les messages Slack
+
+Appelle slack_read_channel sur #échanges-ca-équipe.
+→ ID dans reference/slack-channels.md
+
+Période : 3 derniers jours. Identifier :
+décisions prises, blocages mentionnés, tâches sans responsable.
+
+Continue quand les messages sont dans le contexte.
+
+...</code></pre>
+
+  <p>
+    Le skill est maintenant <strong>découplé</strong> de l'infrastructure.
+    Il décrit <em>ce qu'il veut faire</em>, pas <em>comment trouver l'ID</em>.
+  </p>
+
+  <!-- ─── 6. STRUCTURE DU REPO ─────────────────────────────────────────── -->
+  <h2>6. Structure du repo maintenant</h2>
+
+  <pre><code>MZD/
+├── .agents/
+│   └── skills/
+│       ├── brief-hebdo/
+│       ├── brief-hebdo-actif/
+│       ├── coordination-mzd/
+│       └── cloture-semaine/
+│
+├── reference/               ← nouveau
+│   ├── slack-channels.md    ← source vérité Slack
+│   └── notion-structure.md  ← source vérité Notion
+│
+├── lessons/
+└── MISSION.md</code></pre>
+
+  <p>
+    Le dossier <code>reference/</code> est la <strong>mémoire organisationnelle</strong>
+    de Claude dans ce repo. Il ne tient pas de l'entraînement du modèle —
+    il vient de toi, mis à jour par toi, versionné avec Git.
+  </p>
+
+  <!-- ─── QUIZ ─────────────────────────────────────────────────────────── -->
+  <h2>Quiz</h2>
+
+  <!-- Q1 -->
+  <div class="quiz-block" id="q1">
+    <p class="quiz-question">
+      Pourquoi éviter d'écrire <code>C02085Z5CHL</code>
+      directement dans un SKILL.md ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Parce que Claude ne peut pas lire les IDs Slack
+      </button>
+      <button class="quiz-option" onclick="answer('q1', true)">
+        Parce que l'ID peut changer, et il faudrait corriger
+        chaque skill qui le contient
+      </button>
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Parce que les IDs sont confidentiels
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q1-feedback"></p>
+  </div>
+
+  <!-- Q2 -->
+  <div class="quiz-block" id="q2">
+    <p class="quiz-question">
+      À quel moment Claude lit-il le fichier
+      <code>reference/slack-channels.md</code> ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Pendant l'entraînement du modèle
+      </button>
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Une fois au démarrage, puis il mémorise les IDs
+      </button>
+      <button class="quiz-option" onclick="answer('q2', true)">
+        À chaque exécution du skill, comme contexte injecté
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q2-feedback"></p>
+  </div>
+
+  <!-- Q3 -->
+  <div class="quiz-block" id="q3">
+    <p class="quiz-question">
+      Le canal #info-generale est archivé et remplacé par #annonces-mzd.
+      Que faut-il faire ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Mettre à jour l'ID dans chaque SKILL.md concerné
+      </button>
+      <button class="quiz-option" onclick="answer('q3', true)">
+        Mettre à jour <code>reference/slack-channels.md</code> uniquement —
+        les skills se mettent à jour automatiquement
+      </button>
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Recréer tous les skills depuis zéro
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q3-feedback"></p>
+  </div>
+
+  <!-- ─── CE QU'ON A CONSTRUIT ────────────────────────────────────────── -->
+  <h2>Ce qu'on a construit dans cette leçon</h2>
+
+  <ul>
+    <li>
+      <code>reference/slack-channels.md</code> — tous les canaux Slack MZD
+      avec leurs IDs réels, fetchés depuis l'API Slack
+    </li>
+    <li>
+      <code>reference/notion-structure.md</code> — bases de données et pages
+      Notion clés avec leurs IDs réels
+    </li>
+    <li>
+      Le pattern <strong>document once, cite everywhere</strong> — les skills
+      pointent vers les reference docs, pas vers des IDs hardcodés
+    </li>
+  </ul>
+
+  <!-- ─── NAVIGATION ───────────────────────────────────────────────────── -->
+  <nav class="lesson-nav">
+    <a href="0004-composer-des-skills-ensemble.html">← Leçon 4 : Composer des skills</a>
+    <span class="lesson-nav-current">Leçon 5</span>
+    <span class="lesson-nav-next">Leçon 6 (à venir)</span>
+  </nav>
+
+</article>
+
+<script>
+  const feedback = {
+    q1: {
+      ok: 'Exact. Un ID hardcodé est fragile : si l'infrastructure change, chaque skill qui contient l'ID est cassé. Les reference docs centralisent cette information.',
+      ko: 'Pas tout à fait. Claude lit très bien les IDs. Le problème, c'est la fragilité : si l'ID change, il faut corriger chaque skill qui l'a en dur.'
+    },
+    q2: {
+      ok: 'Exact. C'est la même logique que pour les données Notion ou Slack : le reference doc est du contexte injecté, pas de la mémoire persistante.',
+      ko: 'Non. Claude n'apprend rien entre les sessions et ne mémorise pas les IDs de ton repo. Il relit les reference docs à chaque exécution, comme un SKILL.md.'
+    },
+    q3: {
+      ok: 'Correct. C'est tout l'intérêt du pattern : une seule mise à jour dans le fichier de référence, et tous les skills qui le citent bénéficient immédiatement de la correction.',
+      ko: 'Non. Si les skills citent le reference doc au lieu de hardcoder l'ID, une seule mise à jour suffit. C'est exactement ce que le pattern "document once, cite everywhere" permet.'
+    }
+  };
+
+  function answer(questionId, isCorrect) {
+    const block = document.getElementById(questionId);
+    block.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = true);
+    const fb = document.getElementById(questionId + '-feedback');
+    fb.classList.add('visible');
+    fb.textContent = isCorrect ? feedback[questionId].ok : feedback[questionId].ko;
+    fb.classList.toggle('correct', isCorrect);
+    fb.classList.toggle('wrong', !isCorrect);
+  }
+</script>
+</body>
+</html>
