@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 4 — Composer des skills ensemble</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 4 · Claude Code × MZD</p>
+  <h1>Composer des skills ensemble</h1>
+  <p class="lesson-subtitle">
+    Router skill et orchestration — passer de deux skills isolés
+    à un système de coordination MZD complet.
+  </p>
+
+  <!-- ─── RAPPEL ──────────────────────────────────────────────────────────── -->
+  <h2>Où on en est</h2>
+
+  <p>
+    Tu as deux skills opérationnels :
+    <code>/brief-hebdo</code> (passif) et <code>/brief-hebdo-actif</code>
+    (crée des tickets + envoie des alertes Slack).
+    La question qui se pose naturellement : <em>quand utiliser lequel ?</em>
+    Et si d'autres skills s'ajoutent à l'avenir, comment s'y retrouver ?
+  </p>
+
+  <p>
+    Matt Pocock a une réponse à ça : le <strong>router skill</strong>.
+  </p>
+
+  <!-- ─── 1. LE PROBLÈME : CHARGE COGNITIVE ───────────────────────────────── -->
+  <h2>1. Le problème : charge cognitive vs charge de contexte</h2>
+
+  <p>
+    Chaque skill que tu crées te demande de mémoriser son nom et son bon
+    moment d'usage. Matt Pocock appelle ça la
+    <strong>cognitive load</strong> — la charge que tu portes en tête en tant
+    qu'humain. Elle augmente avec chaque skill user-invoked.
+  </p>
+
+  <p>
+    En face, il y a la <strong>context load</strong> : le coût qu'un skill
+    model-invoked impose à chaque échange en chargeant sa description dans
+    la fenêtre de contexte de Claude.
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">Sans router — cognitive load élevée</div>
+      <div class="compare-body">
+        Tu dois te souvenir :<br /><br />
+        <code>/brief-hebdo</code> → vendredi matin, lecture seule<br />
+        <code>/brief-hebdo-actif</code> → vendredi midi, actions<br />
+        <code>/check-programmation</code> → à venir<br />
+        <code>/alerte-bail</code> → à venir<br /><br />
+        4 skills à retenir, et ça grossit.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Avec router — un seul point d'entrée</div>
+      <div class="compare-body">
+        Tu retiens un seul nom :<br /><br />
+        <code>/coordination-mzd</code><br /><br />
+        Le router te demande ce dont tu as besoin
+        et t'oriente vers le bon skill.
+        Un skill à retenir, quel que soit le nombre de skills derrière.
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 2. LE ROUTER SKILL ──────────────────────────────────────────────── -->
+  <h2>2. Le router skill</h2>
+
+  <p>
+    Un router skill est un skill <strong>user-invoked</strong> dont le seul
+    rôle est de cartographier les autres skills et d'indiquer lequel atteindre
+    selon la situation. Il <em>pointe</em> vers les autres — il ne les exécute
+    pas lui-même.
+  </p>
+
+  <div class="callout">
+    <strong>Ce que le router ne fait pas</strong>
+    Un router skill ne peut pas déclencher automatiquement un autre
+    skill user-invoked — seul l'humain peut le faire. Le router
+    fournit la carte ; toi tu appuies sur la gâchette.
+  </div>
+
+  <p>
+    L'exemple parfait dans ce repo : <code>/ask-matt</code>.
+    C'est un router pur : il liste les flows disponibles et te dit
+    lequel utiliser selon ta situation. Il ne code pas, ne génère pas
+    de PRD — il navigue.
+  </p>
+
+  <!-- ─── 3. COORDINATION-MZD ─────────────────────────────────────────────── -->
+  <h2>3. Le skill <code>coordination-mzd</code></h2>
+
+  <pre><code>---
+name: coordination-mzd
+description: >
+  Router pour tous les skills de coordination de la MZD.
+  Utilise quand tu ne sais pas quel skill appeler,
+  ou pour avoir une vue d'ensemble des outils disponibles.
+disable-model-invocation: true
+---
+
+# Coordination MZD — carte des skills
+
+Tu veux coordonner le travail de la MZD. Voici quel skill utiliser selon
+ta situation.
+
+## Lecture seule — tu veux comprendre l'état de la semaine
+
+→ `/brief-hebdo`
+
+Fetche les tâches Notion + messages Slack et produit un résumé.
+Aucune action déclenchée. Idéal le vendredi matin ou avant une réunion.
+
+## Action — tu veux que Claude agisse sur les blocages
+
+→ `/brief-hebdo-actif`
+
+Même fetch que brief-hebdo, mais crée des tickets Notion 🔴 et envoie
+des alertes Slack pour chaque blocage détecté. Vérifie l'idempotence
+avant d'agir. Idéal le vendredi midi ou en début de semaine.
+
+## Programmation — tu veux gérer les événements et la com
+
+→ `/check-programmation` *(à venir)*
+
+Fetche la todo list programmation, identifie les publications en retard
+et les événements sans billetterie, et envoie une alerte à l'équipe com.
+
+## Bail — tu veux suivre l'avancement du dossier bail
+
+→ `/suivi-bail` *(à venir)*
+
+Fetche les CR CA liés au bail et le canal Slack #bail, produit un
+état des lieux et identifie la prochaine action requise.
+
+## Tu ne sais pas quel skill utiliser ?
+
+Décris ta situation en une phrase et Claude t'orientera.
+</code></pre>
+
+  <!-- ─── 4. LES DEUX TYPES D'ORCHESTRATION ───────────────────────────────── -->
+  <h2>4. Les deux types de composition</h2>
+
+  <p>
+    Matt Pocock distingue deux façons de composer des skills :
+  </p>
+
+  <h3>Type A — Router (navigation)</h3>
+  <p>
+    Un skill qui <em>pointe</em> vers d'autres skills selon la situation.
+    C'est <code>coordination-mzd</code>. L'humain reste aux commandes :
+    il lit la carte et choisit.
+  </p>
+
+  <h3>Type B — Séquence orchestrée</h3>
+  <p>
+    Un skill qui <em>exécute</em> une chaîne d'actions dans l'ordre.
+    Par exemple, un skill <code>clôture-semaine</code> qui :
+  </p>
+
+  <pre><code>---
+name: cloture-semaine
+description: >
+  Clôture de semaine MZD complète : brief actif + résumé prog
+  + message récapitulatif sur Slack. À lancer chaque vendredi à 17h.
+---
+
+## Étape 1 — Exécuter le brief hebdomadaire actif
+Exécute toutes les étapes de `/brief-hebdo-actif` :
+fetch Notion, fetch Slack, classifier, vérifier idempotence,
+créer tickets 🔴, envoyer alertes.
+Continue quand le brief est produit et les actions confirmées.
+
+## Étape 2 — Fetch la todo liste programmation
+Appelle `notion-fetch` sur la Todo list programmation.
+Identifie les tâches ouvertes avec deadline dans les 14 prochains jours.
+Continue quand la liste est dans le contexte.
+
+## Étape 3 — Composer le message de clôture
+Sur la base du brief (étape 1) et des tâches prog (étape 2),
+rédige un message Slack de clôture de semaine :
+
+- 🗓️ **Semaine prochaine** : 3 priorités max
+- 🔴 **Blocages traités** : résumé des alertes envoyées
+- 📢 **Com à venir** : publications programmées ou à programmer
+
+Message : 10 lignes maximum, ton direct et actionnable.
+
+## Étape 4 — Envoyer sur Slack
+Appelle `slack_send_message` sur #info-generale avec le message
+composé à l'étape 3.
+Critère : confirmation d'envoi reçue.</code></pre>
+
+  <div class="callout warn">
+    <strong>Attention : coût de la séquence orchestrée</strong>
+    Une séquence qui enchaine plusieurs fetches et plusieurs actions
+    peut être longue et consommer beaucoup de contexte.
+    Garde les séquences courtes (3-4 étapes max) et décompose les
+    sequences longues en plusieurs skills séparés avec un router.
+  </div>
+
+  <!-- ─── 5. QUAND CHOISIR QUOI ────────────────────────────────────────────── -->
+  <h2>5. Router ou séquence — comment choisir ?</h2>
+
+  <pre><code>Situation                              → Choix
+─────────────────────────────────────────────────────────
+Tu veux naviguer entre plusieurs       → Router skill
+  options selon le contexte
+
+Tu veux exécuter une séquence fixe     → Séquence orchestrée
+  toujours dans le même ordre
+
+Tu accumules > 5 skills user-invoked   → Ajoute un router
+  et tu commences à les oublier
+
+Les étapes d'une séquence varient      → Router + skills séparés
+  selon les données fetchées</code></pre>
+
+  <!-- ─── QUIZ ──────────────────────────────────────────────────────────────── -->
+  <div class="quiz">
+    <h3>Quiz — router skill</h3>
+    <div class="quiz-question">
+      Pourquoi le skill <code>coordination-mzd</code> a-t-il
+      <code>disable-model-invocation: true</code> dans son frontmatter ?
+    </div>
+    <ul class="quiz-options" id="q1-options">
+      <li><button onclick="checkAnswer('q1', this, false)">
+        Pour que Claude ne puisse pas lire son contenu
+      </button></li>
+      <li><button onclick="checkAnswer('q1', this, true)">
+        Pour qu'il ne charge pas de description dans le contexte à chaque
+        échange — un router est déclenché par l'humain, pas automatiquement
+        par Claude
+      </button></li>
+      <li><button onclick="checkAnswer('q1', this, false)">
+        Parce qu'un router ne peut pas avoir de description en YAML
+      </button></li>
+      <li><button onclick="checkAnswer('q1', this, false)">
+        Pour économiser des tokens Notion
+      </button></li>
+    </ul>
+    <div class="quiz-feedback" id="q1-feedback"></div>
+  </div>
+
+  <div class="quiz">
+    <h3>Quiz — séquence orchestrée</h3>
+    <div class="quiz-question">
+      Dans <code>cloture-semaine</code>, pourquoi l'étape 1 exécute-t-elle
+      <em>toutes</em> les étapes de <code>brief-hebdo-actif</code> avant
+      de passer à l'étape 2 ?
+    </div>
+    <ul class="quiz-options" id="q2-options">
+      <li><button onclick="checkAnswer('q2', this, false)">
+        Pour éviter les doublons dans Notion
+      </button></li>
+      <li><button onclick="checkAnswer('q2', this, true)">
+        C'est le completion criterion de l'étape 1 — l'étape 2 ne peut
+        commencer que quand le brief est produit et les actions confirmées,
+        pour éviter la premature completion
+      </button></li>
+      <li><button onclick="checkAnswer('q2', this, false)">
+        Parce que Slack exige que les tickets Notion existent avant l'envoi
+      </button></li>
+      <li><button onclick="checkAnswer('q2', this, false)">
+        Pour respecter l'ordre alphabétique des étapes
+      </button></li>
+    </ul>
+    <div class="quiz-feedback" id="q2-feedback"></div>
+  </div>
+
+  <div class="quiz">
+    <h3>Quiz — cognitive load vs context load</h3>
+    <div class="quiz-question">
+      Tu as 8 skills MZD user-invoked et tu commences à les oublier.
+      Quelle est la bonne solution selon Matt Pocock ?
+    </div>
+    <ul class="quiz-options" id="q3-options">
+      <li><button onclick="checkAnswer('q3', this, false)">
+        Passer tous les skills en model-invoked pour que Claude les retienne
+      </button></li>
+      <li><button onclick="checkAnswer('q3', this, false)">
+        Supprimer les skills les moins utilisés
+      </button></li>
+      <li><button onclick="checkAnswer('q3', this, true)">
+        Créer un router skill user-invoked qui liste les 8 skills
+        et quand les atteindre — un seul nom à retenir en échange d'une carte
+      </button></li>
+      <li><button onclick="checkAnswer('q3', this, false)">
+        Réécrire tous les skills en un seul skill géant
+      </button></li>
+    </ul>
+    <div class="quiz-feedback" id="q3-feedback"></div>
+  </div>
+
+  <!-- ─── CE QUE TU PEUX FAIRE MAINTENANT ────────────────────────────────── -->
+  <h2>Ce que tu peux faire maintenant</h2>
+
+  <p>
+    Dis à Claude <strong>"crée le skill coordination-mzd"</strong> pour
+    avoir le router dans le repo. Tu pourras l'invoquer avec
+    <code>/coordination-mzd</code> quand tu ne sais plus quel skill
+    utiliser.
+  </p>
+
+  <p>
+    Tu peux aussi demander <strong>"crée le skill cloture-semaine"</strong>
+    pour avoir la séquence orchestrée complète (brief-hebdo-actif + prog +
+    message Slack de clôture).
+  </p>
+
+  <!-- ─── BILAN DU PARCOURS ─────────────────────────────────────────────── -->
+  <h2>Bilan du parcours jusqu'ici</h2>
+
+  <div style="background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin: 1.5rem 0; font-size: 0.92rem; line-height: 1.9;">
+    <strong>Leçon 1</strong> — Connaissance paramétrique vs contexte injecté<br />
+    <strong>Leçon 2</strong> — Anatomie d'un SKILL.md · skill <code>brief-hebdo</code><br />
+    <strong>Leçon 3</strong> — Branches + actions · skill <code>brief-hebdo-actif</code><br />
+    <strong>Leçon 4</strong> — Router + séquence · skill <code>coordination-mzd</code><br />
+    <br />
+    <strong>Skills créés dans le repo :</strong><br />
+    <code>.agents/skills/brief-hebdo/</code><br />
+    <code>.agents/skills/brief-hebdo-actif/</code><br />
+    <code>.agents/skills/coordination-mzd/</code> ← après cette leçon
+  </div>
+
+  <!-- ─── PROCHAINE ÉTAPE ────────────────────────────────────────────────── -->
+  <h2>Prochaine étape</h2>
+
+  <p>
+    <strong>Leçon 5 (à venir) :</strong> Ancrer les skills dans la réalité MZD
+    — documenter la structure Notion, les canaux Slack et les dossiers Drive
+    dans des <em>reference docs</em> que chaque skill peut citer,
+    pour ne plus jamais hardcoder un ID dans un skill.
+  </p>
+
+  <div class="ask-box">
+    <strong>Tu as une question ?</strong> Pose-la dans le chat.
+    Tu peux aussi demander à Claude de créer <code>coordination-mzd</code>
+    ou <code>cloture-semaine</code> directement.
+  </div>
+
+  <nav class="lesson-nav">
+    <span><a href="0003-skill-intelligent-decision-et-action.html">← Leçon 3</a></span>
+    <span><a href="0005-reference-docs-ancrer-les-skills-dans-la-mzd.html">Leçon 5 →</a></span>
+  </nav>
+
+</article>
+
+<script>
+  const feedback = {
+    q1: {
+      ok: '✓ Exact. Un router est par définition user-invoked : tu l\'appelles quand tu es perdu. S\'il était model-invoked, sa description chargerait le contexte à chaque échange — un coût permanent pour un skill qui sert à naviguer, pas à agir.',
+      ko: '✗ Non. disable-model-invocation retire le skill de la vue de Claude — Claude ne peut plus le déclencher seul. Mais toi tu peux toujours l\'invoquer en tapant /coordination-mzd. Le but : zéro context load, car un router ne sert qu\'à naviguer.'
+    },
+    q2: {
+      ok: '✓ Parfait. C\'est la logique du completion criterion : l\'étape 2 ne peut commencer que si l\'étape 1 est réellement terminée — brief produit, tickets créés, alertes confirmées. Sans ça, l\'étape 2 raisonnerait sur un contexte partiel.',
+      ko: '✗ Non. La raison est le completion criterion : on veut s\'assurer que brief-hebdo-actif a fini son travail (fetch, classification, tickets, alertes) avant que l\'étape suivante commence à raisonner sur ce contexte.'
+    },
+    q3: {
+      ok: '✓ C\'est exactement la solution router skill de Matt Pocock. Tu échanges la cognitive load de 8 noms contre 1 seul nom (/coordination-mzd), et le router porte la carte à ta place.',
+      ko: '✗ Non. Passer en model-invoked multiplierait la context load (8 descriptions dans le contexte). Supprimer des skills ferait perdre des fonctionnalités. Un skill géant serait du sprawl (trop long, trop difficile à maintenir). La bonne réponse : un router.'
+    }
+  };
+
+  function checkAnswer(questionId, btn, isCorrect) {
+    const options = document.getElementById(questionId + '-options');
+    options.querySelectorAll('button').forEach(b => {
+      b.disabled = true;
+      b.classList.remove('correct', 'wrong');
+    });
+    btn.classList.add(isCorrect ? 'correct' : 'wrong');
+    const fb = document.getElementById(questionId + '-feedback');
+    fb.classList.add('visible');
+    fb.textContent = isCorrect ? feedback[questionId].ok : feedback[questionId].ko;
+    fb.classList.toggle('correct', isCorrect);
+    fb.classList.toggle('wrong', !isCorrect);
+  }
+</script>
+</body>
+</html>
