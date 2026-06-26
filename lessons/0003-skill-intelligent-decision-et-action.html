@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 3 — Skill intelligent : décision et action</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 3 · Claude Code × MZD</p>
+  <h1>Skill intelligent : décision et action</h1>
+  <p class="lesson-subtitle">
+    Ajouter des branches conditionnelles et des actions d'écriture
+    — transformer le brief passif en coordinateur actif.
+  </p>
+
+  <!-- ─── RAPPEL ──────────────────────────────────────────────────────────── -->
+  <h2>Où on en est</h2>
+
+  <p>
+    Le skill <code>brief-hebdo</code> produit un résumé. C'est utile — mais un
+    coordinateur ne se contente pas de lire. Il <em>agit</em> : il crée une
+    tâche Notion quand un blocage est détecté, il envoie un message Slack quand
+    une mission est sans responsable.
+  </p>
+
+  <p>
+    Cette leçon ajoute deux choses au pattern <strong>FETCH → REASON → ACT</strong> :
+    une <strong>logique de décision</strong> (des branches) et des
+    <strong>étapes d'action</strong> qui écrivent dans les vrais outils.
+  </p>
+
+  <!-- ─── 1. LES BRANCHES ─────────────────────────────────────────────────── -->
+  <h2>1. Les branches dans un skill</h2>
+
+  <p>
+    Une <strong>branche</strong> est un chemin conditionnel dans un skill.
+    Selon ce que le fetch a trouvé, l'agent prend une route différente.
+    Matt Pocock les documente comme des cas distincts dans le SKILL.md.
+  </p>
+
+  <pre><code>## Étape 3 — Décider et agir
+
+Pour chaque tâche dans le contexte :
+
+**Branche A — Tâche bloquée depuis plus de 5 jours**
+→ Appelle `notion-create-pages` pour créer un ticket "Alerte blocage"
+   dans la base Tâches, lié à la tâche originale.
+→ Appelle `slack_send_message` sur #info-generale avec un message
+   concis identifiant le blocage et son responsable.
+
+**Branche B — Mission sans responsable assigné**
+→ Appelle `slack_send_message` sur le canal concerné
+   pour demander qui peut prendre en charge.
+
+**Branche C — Tout est en ordre**
+→ Aucune action. Indique simplement dans le brief
+   que la semaine est bien distribuée.</code></pre>
+
+  <div class="callout">
+    <strong>Règle des branches</strong>
+    Chaque branche doit être mutuellement exclusive et exhaustive.
+    L'agent doit pouvoir décider sans ambiguïté dans quelle branche
+    il se trouve — sinon il choisit la branche la plus probable
+    et peut se tromper.
+  </div>
+
+  <!-- ─── 2. EXEMPLE RÉEL MZD ─────────────────────────────────────────────── -->
+  <h2>2. Exemple réel — ce que le brief de cette semaine a révélé</h2>
+
+  <p>
+    Le brief du 26 juin 2026 a identifié plusieurs situations qui méritent
+    une action automatique. Voici comment un skill intelligent les aurait
+    traitées :
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">brief-hebdo (passif)</div>
+      <div class="compare-body">
+        Produit un texte :<br /><br />
+        <em>"Passation communication sans VSC : personne n'a encore repris
+        les RS et la boîte mail animation."</em><br /><br />
+        Quelqu'un doit lire et agir manuellement.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">brief-hebdo-actif (intelligent)</div>
+      <div class="compare-body">
+        Détecte le blocage → crée automatiquement
+        une tâche Notion "Passation com — responsable à désigner"
+        et envoie un message Slack ciblé au trinôme
+        Agathe / Gaspard / Sarah.
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 3. LE SKILL COMPLET ─────────────────────────────────────────────── -->
+  <h2>3. Le skill <code>brief-hebdo-actif</code></h2>
+
+  <pre><code>---
+name: brief-hebdo-actif
+description: >
+  Produit le brief hebdomadaire MZD ET déclenche des actions
+  (tickets Notion, alertes Slack) sur les blocages détectés.
+  Utilise chaque vendredi ou avant toute réunion de coordination.
+---
+
+## Étape 1 — Fetch les tâches Notion
+
+Appelle `notion-query-database-view` sur la base "Tâches MZD".
+Filtre : échéance dans les 7 prochains jours OU statut "En cours".
+Continue quand chaque tâche (statut, assigné, date, dernière modif)
+est dans le contexte.
+
+## Étape 2 — Fetch les messages Slack
+
+Appelle `slack_read_channel` sur #info-generale pour les 3 derniers jours.
+Identifie : décisions prises, missions sans responsable, blocages exprimés.
+Continue quand les fils pertinents sont dans le contexte.
+
+## Étape 3 — Analyser et classer
+
+Pour chaque tâche et chaque décision Slack, classe-la dans une
+des trois catégories (uniquement depuis le contexte fetchté) :
+
+- 🔴 BLOQUÉE : tâche "En cours" sans activité depuis plus de 5 jours,
+  ou mission identifiée dans le CR CA sans responsable assigné
+- 🟡 À SURVEILLER : tâche proche de l'échéance, responsable présent
+  mais pas de mise à jour récente
+- 🟢 EN ORDRE : avancement visible, responsable clair
+
+## Étape 4 — Agir sur les blocages 🔴
+
+Pour chaque item 🔴 :
+a) Appelle `notion-create-pages` dans la base "Tâches MZD" :
+   - Titre : "🔴 Alerte — [nom de la tâche bloquée]"
+   - Propriétés : statut "À débloquer", lié à la tâche originale
+b) Appelle `slack_send_message` sur #info-generale :
+   - Message court (3 lignes max) : tâche bloquée, responsable,
+     action attendue, lien Notion
+
+Critère : chaque item 🔴 doit avoir généré un ticket ET un message
+avant de passer à l'étape suivante.
+
+## Étape 5 — Produire le brief final
+
+Rédige le brief structuré (uniquement depuis le contexte — ne pas
+inventer) :
+
+- **Priorités** : les items 🟡 et 🟢 les plus importants (3 max)
+- **Blocages traités** : liste des actions déclenchées à l'étape 4
+- **À noter** : informations pertinentes des échanges Slack
+
+Le brief est complet quand chaque item classé est mentionné
+et quand les actions de l'étape 4 sont toutes confirmées.</code></pre>
+
+  <!-- ─── 4. LE GUARD RAIL ANTI-SPAM ─────────────────────────────────────── -->
+  <h2>4. Le garde-fou anti-spam</h2>
+
+  <p>
+    Un skill qui envoie des messages Slack automatiquement peut devenir
+    irritant s'il est relancé plusieurs fois sur les mêmes données.
+    Matt Pocock recommande d'ajouter un <strong>critère d'idempotence</strong> :
+  </p>
+
+  <pre><code>## Avant l'étape 4 — Vérifier l'idempotence
+
+Avant de créer un ticket ou d'envoyer un message, vérifie si
+un ticket "🔴 Alerte — [nom]" existe déjà dans Notion
+(appelle `notion-search` avec le titre exact).
+
+Si le ticket existe et a été créé il y a moins de 3 jours :
+→ Ne pas re-créer de ticket ni re-envoyer de message Slack.
+→ Mentionne simplement le blocage existant dans le brief.</code></pre>
+
+  <div class="callout warn">
+    <strong>Pourquoi c'est important</strong>
+    Sans ce garde-fou, relancer le skill deux fois dans la semaine
+    génère deux tickets Notion et deux messages Slack pour le même
+    blocage — ce qui crée du bruit et érode la confiance de l'équipe
+    dans l'outil.
+  </div>
+
+  <!-- ─── 5. STRUCTURE FINALE DU SKILL ────────────────────────────────────── -->
+  <h2>5. La structure FETCH → REASON → ACT au complet</h2>
+
+  <pre><code>FETCH   — Étapes 1 & 2  : lire Notion + Slack
+REASON  — Étape 3       : classer les items (🔴 / 🟡 / 🟢)
+CHECK   — Avant étape 4 : vérifier l'idempotence
+ACT     — Étape 4       : créer tickets + envoyer messages
+REPORT  — Étape 5       : produire le brief final</code></pre>
+
+  <p>
+    Le pattern s'est enrichi d'une étape <strong>CHECK</strong> entre REASON
+    et ACT. C'est une bonne pratique pour tout skill qui écrit dans des
+    outils partagés : vérifier avant d'agir.
+  </p>
+
+  <!-- ─── QUIZ ──────────────────────────────────────────────────────────────── -->
+  <div class="quiz">
+    <h3>Quiz — branches</h3>
+    <div class="quiz-question">
+      Pourquoi chaque branche d'un skill doit-elle être mutuellement exclusive ?
+    </div>
+    <ul class="quiz-options" id="q1-options">
+      <li><button onclick="checkAnswer('q1', this, false)">
+        Pour que le skill soit plus court
+      </button></li>
+      <li><button onclick="checkAnswer('q1', this, true)">
+        Pour que l'agent puisse décider sans ambiguïté dans quelle branche
+        il se trouve, sans risquer d'exécuter deux branches en même temps
+      </button></li>
+      <li><button onclick="checkAnswer('q1', this, false)">
+        Parce que Notion ne supporte pas les conditions imbriquées
+      </button></li>
+      <li><button onclick="checkAnswer('q1', this, false)">
+        Pour éviter les appels MCP simultanés
+      </button></li>
+    </ul>
+    <div class="quiz-feedback" id="q1-feedback"></div>
+  </div>
+
+  <div class="quiz">
+    <h3>Quiz — idempotence</h3>
+    <div class="quiz-question">
+      Le skill <code>brief-hebdo-actif</code> est lancé deux fois le même jour.
+      Que se passe-t-il grâce au garde-fou d'idempotence ?
+    </div>
+    <ul class="quiz-options" id="q2-options">
+      <li><button onclick="checkAnswer('q2', this, false)">
+        Le skill échoue et renvoie une erreur
+      </button></li>
+      <li><button onclick="checkAnswer('q2', this, false)">
+        Deux tickets identiques sont créés dans Notion
+      </button></li>
+      <li><button onclick="checkAnswer('q2', this, true)">
+        Le skill détecte que le ticket existe déjà (moins de 3 jours),
+        ne le recrée pas, et mentionne juste le blocage dans le brief
+      </button></li>
+      <li><button onclick="checkAnswer('q2', this, false)">
+        Le second lancement est ignoré entièrement
+      </button></li>
+    </ul>
+    <div class="quiz-feedback" id="q2-feedback"></div>
+  </div>
+
+  <div class="quiz">
+    <h3>Quiz — ordre des étapes</h3>
+    <div class="quiz-question">
+      Dans le pattern enrichi, dans quel ordre se trouvent les étapes CHECK et ACT ?
+    </div>
+    <ul class="quiz-options" id="q3-options">
+      <li><button onclick="checkAnswer('q3', this, false)">
+        ACT → CHECK → REPORT
+      </button></li>
+      <li><button onclick="checkAnswer('q3', this, true)">
+        FETCH → REASON → CHECK → ACT → REPORT
+      </button></li>
+      <li><button onclick="checkAnswer('q3', this, false)">
+        FETCH → CHECK → REASON → ACT → REPORT
+      </button></li>
+      <li><button onclick="checkAnswer('q3', this, false)">
+        CHECK → FETCH → REASON → ACT → REPORT
+      </button></li>
+    </ul>
+    <div class="quiz-feedback" id="q3-feedback"></div>
+  </div>
+
+  <!-- ─── CE QUE TU PEUX FAIRE MAINTENANT ────────────────────────────────── -->
+  <h2>Ce que tu peux faire maintenant</h2>
+
+  <p>
+    Dis à Claude <strong>"crée le skill brief-hebdo-actif"</strong>.
+    Il génèrera <code>.agents/skills/brief-hebdo-actif/SKILL.md</code>
+    avec le contenu vu dans cette leçon.
+  </p>
+
+  <p>
+    Tu peux aussi demander : <strong>"teste le skill sur le brief de cette semaine"</strong>
+    — Claude utilisera le contexte déjà fetchté pour identifier les 🔴 et
+    simuler les actions sans les déclencher réellement (mode dry-run).
+  </p>
+
+  <!-- ─── SOURCE PRIMAIRE ────────────────────────────────────────────────── -->
+  <h2>Source primaire recommandée</h2>
+
+  <p>
+    Lis la section <strong>Branches</strong> dans
+    <a href="../.agents/skills/writing-great-skills/GLOSSARY.md">
+    <code>.agents/skills/writing-great-skills/GLOSSARY.md</code></a>.
+    Elle explique précisément comment Matt Pocock définit les branches,
+    le <em>completion criterion</em> par branche, et le risque de
+    <em>premature completion</em> dans les skills à logique conditionnelle.
+  </p>
+
+  <!-- ─── PROCHAINE ÉTAPE ────────────────────────────────────────────────── -->
+  <h2>Prochaine étape</h2>
+
+  <p>
+    <strong>Leçon 4 (à venir) :</strong> Composer plusieurs skills ensemble
+    — un skill <code>coordination-hebdo</code> qui invoque
+    <code>brief-hebdo-actif</code> et <code>todo-list-programmation</code>
+    dans une séquence coordonnée, avec un compte rendu final posté sur Slack.
+  </p>
+
+  <div class="ask-box">
+    <strong>Tu as une question ?</strong> Pose-la dans le chat.
+    Tu peux aussi demander à Claude de créer le skill
+    <code>brief-hebdo-actif</code> ou de le tester en dry-run
+    sur le brief de cette semaine.
+  </div>
+
+  <nav class="lesson-nav">
+    <span><a href="0002-ecrire-son-premier-skill-mzd.html">← Leçon 2</a></span>
+    <span><a href="0004-composer-des-skills-ensemble.html">Leçon 4 →</a></span>
+  </nav>
+
+</article>
+
+<script>
+  const feedback = {
+    q1: {
+      ok: '✓ Exactement. Si deux branches se chevauchent, l\'agent ne sait pas laquelle exécuter — il peut décider arbitrairement, créer des tickets en double, ou envoyer des messages contradictoires.',
+      ko: '✗ Non. L\'exclusivité mutuelle n\'est pas une question de longueur ou de compatibilité technique — c\'est une garantie de déterminisme : l\'agent doit savoir sans ambiguïté quelle branche prendre.'
+    },
+    q2: {
+      ok: '✓ Exact. C\'est le comportement idempotent : même relancé plusieurs fois, le skill produit le même effet observable sans créer de doublons.',
+      ko: '✗ Pas tout à fait. Le garde-fou d\'idempotence ne bloque pas le skill ni ne l\'ignore — il vérifie si l\'action a déjà été faite récemment et se contente de la mentionner dans le brief sans la rejouer.'
+    },
+    q3: {
+      ok: '✓ Parfait. Le CHECK arrive après avoir identifié quoi faire (REASON) et avant d\'agir (ACT). C\'est l\'étape "mesure deux fois, coupe une fois".',
+      ko: '✗ Non. Le CHECK doit venir après REASON (on sait quoi faire) et avant ACT (on agit). Vérifier avant de savoir quoi vérifier n\'a pas de sens.'
+    }
+  };
+
+  function checkAnswer(questionId, btn, isCorrect) {
+    const options = document.getElementById(questionId + '-options');
+    options.querySelectorAll('button').forEach(b => {
+      b.disabled = true;
+      b.classList.remove('correct', 'wrong');
+    });
+    btn.classList.add(isCorrect ? 'correct' : 'wrong');
+
+    const fb = document.getElementById(questionId + '-feedback');
+    fb.classList.add('visible');
+    fb.textContent = isCorrect ? feedback[questionId].ok : feedback[questionId].ko;
+    fb.classList.toggle('correct', isCorrect);
+    fb.classList.toggle('wrong', !isCorrect);
+  }
+</script>
+</body>
+</html>
