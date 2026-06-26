@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 2 — Écrire ton premier skill MZD</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 2 · Claude Code × MZD</p>
+  <h1>Écrire ton premier skill MZD</h1>
+  <p class="lesson-subtitle">
+    Anatomie d'un SKILL.md — et construction d'un skill
+    qui fetche les tâches Notion et produit un brief de coordination.
+  </p>
+
+  <!-- ─── 1. RAPPEL ─────────────────────────────────────────────────────── -->
+  <h2>Rappel de la leçon 1</h2>
+
+  <p>
+    Un skill Claude Code ne doit <strong>jamais raisonner depuis sa connaissance
+    paramétrique</strong> sur des données organisationnelles. Il doit d'abord
+    <em>fetcher</em> le contexte réel, puis raisonner. Le pattern est :
+  </p>
+
+  <pre><code>FETCH → REASON → ACT</code></pre>
+
+  <p>
+    Cette leçon te fait écrire ce pattern dans un vrai fichier SKILL.md.
+  </p>
+
+  <!-- ─── 2. ANATOMIE D'UN SKILL.MD ─────────────────────────────────────── -->
+  <h2>Anatomie d'un SKILL.md</h2>
+
+  <p>
+    Un skill est un fichier Markdown avec deux parties : un <strong>frontmatter</strong>
+    YAML, et un <strong>corps</strong> qui décrit ce que l'agent doit faire.
+  </p>
+
+  <pre><code>---
+name: nom-du-skill
+description: "Décrit quand et pourquoi l'agent doit déclencher ce skill."
+disable-model-invocation: true   # ← si tu veux l'invoquer toi-même
+---
+
+## Étape 1 — Fetch le contexte
+[Ce que l'agent doit lire depuis les vrais outils]
+
+## Étape 2 — Raisonner
+[Ce que l'agent doit faire avec ce contexte]
+
+## Étape 3 — Agir
+[L'output ou l'action finale]</code></pre>
+
+  <div class="callout">
+    <strong>Trois champs frontmatter qui comptent</strong>
+    <strong>name</strong> — identifiant du skill (utilisé dans /nom-du-skill)<br />
+    <strong>description</strong> — présent → l'agent peut l'invoquer seul ;
+    absent → tu l'invoques toi-même (user-invoked)<br />
+    <strong>disable-model-invocation: true</strong> — force le mode user-invoked
+  </div>
+
+  <!-- ─── 3. LES ÉTAPES ET LE COMPLETION CRITERION ──────────────────────── -->
+  <h2>Deux règles pour des étapes robustes</h2>
+
+  <h3>Règle 1 — Chaque étape se termine sur un critère de complétion</h3>
+
+  <p>
+    Un <strong>completion criterion</strong> est la condition qui dit à l'agent
+    "tu peux passer à la suite." Sans lui, l'agent peut sauter des étapes avant
+    d'avoir fini — c'est ce que Matt Pocock appelle la <em>premature completion</em>.
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">❌ Vague — risque de saut</div>
+      <div class="compare-body">
+        <code>## Étape 1 — Lire Notion</code><br /><br />
+        Lire les tâches Notion de la MZD.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">✅ Net — critère explicite</div>
+      <div class="compare-body">
+        <code>## Étape 1 — Fetch les tâches Notion</code><br /><br />
+        Appelle <code>notion-query-database-view</code> sur la base
+        "Tâches MZD". Continue quand <em>toutes les tâches</em>
+        de la semaine en cours sont dans le contexte.
+      </div>
+    </div>
+  </div>
+
+  <h3>Règle 2 — Ne montre que les post-completion steps nécessaires</h3>
+
+  <p>
+    Plus l'agent voit d'étapes à venir, plus il est tenté de les bâcler pour
+    "avancer". Pour les skills courts (2-3 étapes), ce n'est pas un problème.
+    Pour les skills longs, Matt Pocock recommande de séparer les étapes en
+    plusieurs fichiers.
+  </p>
+
+  <!-- ─── 4. TON PREMIER SKILL : BRIEF HEBDO ────────────────────────────── -->
+  <h2>Construire le skill <code>brief-hebdo</code></h2>
+
+  <p>
+    Ce skill fetche les tâches Notion et les messages Slack de la semaine,
+    puis produit un brief de coordination pour l'équipe MZD.
+  </p>
+
+  <pre><code>---
+name: brief-hebdo
+description: >
+  Produit le brief de coordination hebdomadaire de la MZD.
+  Utilise quand l'équipe veut un résumé actionnable des tâches
+  Notion et des échanges Slack de la semaine.
+---
+
+## Étape 1 — Fetch les tâches Notion de la semaine
+
+Appelle `notion-query-database-view` sur la base de données
+"Tâches MZD". Filtre par : date d'échéance dans les 7 prochains jours,
+ou statut "En cours". Continue quand chaque tâche avec son statut,
+son assigné et sa date est dans le contexte.
+
+## Étape 2 — Fetch les messages Slack récents
+
+Appelle `slack_read_channel` sur le canal principal de la MZD
+pour les 3 derniers jours. Continue quand les fils importants
+(décisions, blocages, demandes) sont identifiés dans le contexte.
+
+## Étape 3 — Synthétiser le brief
+
+Sur la base du contexte fetchté (uniquement ce contexte — ne pas
+inventer de tâches ou de décisions), rédige un brief structuré :
+
+- **Cette semaine** : 3 priorités maximum, avec la personne responsable
+- **Blocages** : ce qui nécessite une décision ou une aide
+- **À noter** : informations pertinentes des échanges Slack
+
+Le brief doit être lisible en moins de 2 minutes.
+
+## Critère de complétion
+
+Le brief est complet quand chaque tâche "En cours" ou à échéance
+cette semaine est mentionnée, et quand les blocages sont explicites.</code></pre>
+
+  <div class="callout">
+    <strong>Remarque le "uniquement ce contexte"</strong>
+    C'est le garde-fou anti-hallucination : on interdit explicitement
+    à Claude d'inventer des tâches ou des décisions qui ne seraient pas
+    dans le contexte fetchté. C'est la traduction directe du principe
+    de la leçon 1.
+  </div>
+
+  <!-- ─── 5. OÙ PLACER LE SKILL ─────────────────────────────────────────── -->
+  <h2>Où placer ce fichier</h2>
+
+  <p>
+    Les skills Claude Code vivent dans le dossier <code>.agents/skills/</code>
+    du repo. Pour le skill <code>brief-hebdo</code> :
+  </p>
+
+  <pre><code>.agents/
+└── skills/
+    └── brief-hebdo/
+        └── SKILL.md   ← ton fichier</code></pre>
+
+  <p>
+    Une fois en place, tu l'invoques depuis Claude Code avec :
+  </p>
+
+  <pre><code>/brief-hebdo</code></pre>
+
+  <!-- ─── 6. CE QUE TU PEUX FAIRE MAINTENANT ────────────────────────────── -->
+  <h2>Ce que tu peux faire maintenant</h2>
+
+  <p>
+    Dis à Claude <strong>"crée le skill brief-hebdo"</strong> dans ce repo.
+    Il va générer le fichier <code>.agents/skills/brief-hebdo/SKILL.md</code>
+    avec le contenu vu dans cette leçon, et tu pourras l'invoquer directement.
+  </p>
+
+  <p>
+    Si tu veux d'abord explorer les MCP tools disponibles pour Notion et Slack,
+    demande : <strong>"liste-moi les tools Notion disponibles dans cette session."</strong>
+  </p>
+
+  <!-- ─── 7. QUIZ ────────────────────────────────────────────────────────── -->
+  <div class="quiz">
+    <h3>Quiz — frontmatter</h3>
+    <div class="quiz-question">
+      Un skill avec <code>disable-model-invocation: true</code> dans son
+      frontmatter — comment peut-il être invoqué ?
+    </div>
+    <ul class="quiz-options" id="q1-options">
+      <li><button onclick="checkAnswer('q1', this, false)">
+        Automatiquement par Claude quand il détecte une demande de coordination
+      </button></li>
+      <li><button onclick="checkAnswer('q1', this, true)">
+        Uniquement par toi, en tapant son nom (/brief-hebdo)
+      </button></li>
+      <li><button onclick="checkAnswer('q1', this, false)">
+        Par un autre skill via un appel interne
+      </button></li>
+      <li><button onclick="checkAnswer('q1', this, false)">
+        Il ne peut pas être invoqué du tout
+      </button></li>
+    </ul>
+    <div class="quiz-feedback" id="q1-feedback"></div>
+  </div>
+
+  <div class="quiz">
+    <h3>Quiz — completion criterion</h3>
+    <div class="quiz-question">
+      Quelle est la conséquence d'une étape sans completion criterion net ?
+    </div>
+    <ul class="quiz-options" id="q2-options">
+      <li><button onclick="checkAnswer('q2', this, false)">
+        Le skill ne peut pas être sauvegardé dans .agents/skills/
+      </button></li>
+      <li><button onclick="checkAnswer('q2', this, false)">
+        Claude va refuser d'exécuter l'étape
+      </button></li>
+      <li><button onclick="checkAnswer('q2', this, true)">
+        L'agent risque de passer à l'étape suivante avant que le fetch
+        soit complet — ce que Matt Pocock appelle premature completion
+      </button></li>
+      <li><button onclick="checkAnswer('q2', this, false)">
+        Le frontmatter YAML devient invalide
+      </button></li>
+    </ul>
+    <div class="quiz-feedback" id="q2-feedback"></div>
+  </div>
+
+  <div class="quiz">
+    <h3>Quiz — garde-fou anti-hallucination</h3>
+    <div class="quiz-question">
+      Dans l'étape "Synthétiser le brief", pourquoi précise-t-on
+      "uniquement ce contexte — ne pas inventer de tâches" ?
+    </div>
+    <ul class="quiz-options" id="q3-options">
+      <li><button onclick="checkAnswer('q3', this, false)">
+        Pour que le brief soit plus court
+      </button></li>
+      <li><button onclick="checkAnswer('q3', this, true)">
+        Pour forcer Claude à raisonner uniquement depuis le contexte
+        injecté, et non depuis sa connaissance paramétrique qui
+        ne connaît pas les données MZD
+      </button></li>
+      <li><button onclick="checkAnswer('q3', this, false)">
+        Parce que Notion ne permet pas d'exporter plus de données
+      </button></li>
+      <li><button onclick="checkAnswer('q3', this, false)">
+        Pour respecter le RGPD
+      </button></li>
+    </ul>
+    <div class="quiz-feedback" id="q3-feedback"></div>
+  </div>
+
+  <!-- ─── SOURCE PRIMAIRE ────────────────────────────────────────────────── -->
+  <h2>Source primaire recommandée</h2>
+
+  <p>
+    Examine les skills déjà installés dans ce repo comme exemples vivants.
+    En particulier <a href="../.agents/skills/implement/SKILL.md">
+    <code>.agents/skills/implement/SKILL.md</code></a> (court, direct, des étapes nettes)
+    et <a href="../.agents/skills/triage/SKILL.md">
+    <code>.agents/skills/triage/SKILL.md</code></a> (skill plus élaboré avec branches).
+  </p>
+
+  <!-- ─── PROCHAINE ÉTAPE ────────────────────────────────────────────────── -->
+  <h2>Prochaine étape</h2>
+
+  <p>
+    <strong>Leçon 3 (à venir) :</strong> Rendre le skill <em>intelligent</em>
+    — ajouter une logique de décision (si une tâche est bloquée depuis
+    plus de 3 jours, créer automatiquement un ticket Notion et envoyer
+    un message Slack).
+  </p>
+
+  <div class="ask-box">
+    <strong>Tu as une question ?</strong> Pose-la directement dans le chat.
+    Tu peux aussi demander à Claude de créer le skill <code>brief-hebdo</code>
+    maintenant — il suffit de le demander.
+  </div>
+
+  <nav class="lesson-nav">
+    <span><a href="0001-connaissance-parametrique-vs-contexte-injecte.html">← Leçon 1</a></span>
+    <span><a href="0003-skill-intelligent-decision-et-action.html">Leçon 3 →</a></span>
+  </nav>
+
+</article>
+
+<script>
+  function checkAnswer(questionId, btn, isCorrect) {
+    const options = document.getElementById(questionId + '-options');
+    options.querySelectorAll('button').forEach(b => {
+      b.disabled = true;
+      b.classList.remove('correct', 'wrong');
+    });
+    btn.classList.add(isCorrect ? 'correct' : 'wrong');
+
+    const feedback = document.getElementById(questionId + '-feedback');
+    feedback.classList.add('visible');
+
+    const msgs = {
+      q1: {
+        ok: '✓ Exact. disable-model-invocation: true retire le skill de la vue de l\'agent — seul toi peux le déclencher en tapant /brief-hebdo.',
+        ko: '✗ Non. disable-model-invocation: true signifie que l\'agent ne peut pas l\'invoquer de lui-même. Seul l\'humain peut le déclencher en tapant son nom.'
+      },
+      q2: {
+        ok: '✓ C\'est le risque central : sans critère net, l\'agent peut "décider" que l\'étape est finie alors que le fetch est partiel, et produire un brief incomplet.',
+        ko: '✗ Pas tout à fait. L\'absence de completion criterion ne bloque pas l\'exécution — elle crée un risque que l\'agent saute à l\'étape suivante trop tôt (premature completion).'
+      },
+      q3: {
+        ok: '✓ Exactement. Cette instruction est la traduction directe du principe fetch-first : on a injecté le contexte, maintenant on veut que Claude raisonne dessus seulement.',
+        ko: '✗ Non. Cette instruction protège contre les hallucinations : elle empêche Claude d\'utiliser sa connaissance paramétrique (stale, sans données MZD) à la place du contexte réel injecté.'
+      }
+    };
+
+    const key = questionId;
+    feedback.textContent = isCorrect ? msgs[key].ok : msgs[key].ko;
+    if (isCorrect) {
+      feedback.classList.add('correct'); feedback.classList.remove('wrong');
+    } else {
+      feedback.classList.add('wrong'); feedback.classList.remove('correct');
+    }
+  }
+</script>
+</body>
+</html>
