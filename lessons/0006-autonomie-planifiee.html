@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 6 — Autonomie planifiée</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 6 · Claude Code × MZD</p>
+  <h1>Autonomie planifiée</h1>
+  <p class="lesson-subtitle">
+    Les crons — programmer les skills pour qu'ils se déclenchent seuls,
+    et savoir exactement où garder la main humaine.
+  </p>
+
+  <!-- ─── RAPPEL ──────────────────────────────────────────────────────────── -->
+  <h2>Où on en est</h2>
+
+  <p>
+    Tu as un système complet : des skills qui fetchent, raisonnent, agissent,
+    et des reference docs qui centralisent la structure de la MZD.
+    Le seul point d'entrée qui reste humain, c'est le déclencheur.
+  </p>
+
+  <p>
+    Chaque vendredi, quelqu'un doit se souvenir de lancer
+    <code>/cloture-semaine</code> vers 17h.
+    Si personne ne le fait — le brief n'est pas produit, le message ne part pas.
+  </p>
+
+  <p>
+    La solution s'appelle un <strong>cron</strong>.
+  </p>
+
+  <!-- ─── 1. LES CRONS ─────────────────────────────────────────────────── -->
+  <h2>1. Les crons Claude Code</h2>
+
+  <p>
+    Un cron est une tâche planifiée : à une heure précise, Claude reçoit
+    un prompt et l'exécute, comme si tu l'avais tapé toi-même.
+    Il utilise les mêmes outils, lit les mêmes fichiers, appelle les mêmes MCP.
+  </p>
+
+  <p>
+    Tu le crées avec <code>CronCreate</code>, qui prend deux paramètres clés :
+  </p>
+
+  <ul>
+    <li>
+      <strong>cron</strong> — l'heure d'exécution en syntaxe cron standard
+      (5 champs : minute heure jour mois jour-semaine)
+    </li>
+    <li>
+      <strong>prompt</strong> — le texte à envoyer à Claude à cette heure-là
+    </li>
+  </ul>
+
+  <pre><code>CronCreate({
+  cron: "3 17 * * 5",      // chaque vendredi à 17h03
+  prompt: "Exécute le skill cloture-semaine. \
+Lis d'abord reference/slack-channels.md et \
+reference/notion-structure.md.",
+  durable: true            // persiste entre les sessions
+})</code></pre>
+
+  <p>
+    <code>0 17 * * 5</code> signifie : minute 0, heure 17, n'importe quel jour
+    du mois, n'importe quel mois, jour 5 de la semaine (vendredi).
+    Par convention, on décale légèrement (ici <code>3</code>) pour éviter
+    les pics de charge quand tout le monde programme la même heure ronde.
+  </p>
+
+  <h3>Les deux modes</h3>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Paramètre</th><th>Valeur</th><th>Comportement</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>durable: false</code></td>
+        <td>défaut</td>
+        <td>En mémoire — disparaît quand la session Claude se ferme</td>
+      </tr>
+      <tr>
+        <td><code>durable: true</code></td>
+        <td>persistant</td>
+        <td>Écrit dans <code>.claude/scheduled_tasks.json</code> — survit aux redémarrages</td>
+      </tr>
+      <tr>
+        <td><code>recurring: true</code></td>
+        <td>défaut</td>
+        <td>Se répète à chaque correspondance. Auto-expire après 7 jours.</td>
+      </tr>
+      <tr>
+        <td><code>recurring: false</code></td>
+        <td>unique</td>
+        <td>Se déclenche une seule fois puis se supprime</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <strong>Limite importante</strong><br />
+    Les crons ne se déclenchent que si Claude Code est en cours d'exécution
+    et la session est active. Si tu fermes l'application, les crons non-durables
+    disparaissent ; les durables reprendront au prochain démarrage.
+    Et les récurrents expirent automatiquement après 7 jours — il faut
+    les recréer.
+  </div>
+
+  <!-- ─── 2. LE PROMPT DE CRON ────────────────────────────────────────── -->
+  <h2>2. Écrire un bon prompt de cron</h2>
+
+  <p>
+    Un prompt de cron est différent d'une invocation manuelle.
+    Quand tu tapes <code>/cloture-semaine</code>, tu as du contexte :
+    tu sais que c'est vendredi, tu sais que l'équipe attend le message.
+    Claude n'a rien de tout ça — il part d'une page blanche.
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">Prompt fragile</div>
+      <div class="compare-body">
+        <code>"Lance la clôture de semaine."</code><br /><br />
+        Claude ne sait pas quel skill. Il ne sait pas quels fichiers
+        lire. Il risque d'inventer ou d'échouer silencieusement.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Prompt robuste</div>
+      <div class="compare-body">
+        <code>"C'est vendredi vers 17h. Exécute le skill
+        cloture-semaine défini dans
+        .agents/skills/cloture-semaine/SKILL.md.
+        Lis d'abord reference/slack-channels.md et
+        reference/notion-structure.md."</code>
+      </div>
+    </div>
+  </div>
+
+  <p>Un bon prompt de cron contient trois choses :</p>
+
+  <ol>
+    <li><strong>Le contexte temporel</strong> — quelle heure, quel jour, pourquoi maintenant</li>
+    <li><strong>Le skill à exécuter</strong> — chemin exact du SKILL.md</li>
+    <li><strong>Les fichiers de contexte à lire</strong> — reference docs indispensables</li>
+  </ol>
+
+  <!-- ─── 3. LA QUESTION HUMAIN DANS LA BOUCLE ─────────────────────────── -->
+  <h2>3. Où garder la main humaine</h2>
+
+  <p>
+    Automatiser un skill, c'est retirer l'humain du déclencheur.
+    Mais ce n'est pas la même chose que de retirer l'humain
+    <em>des décisions</em>.
+  </p>
+
+  <p>
+    Voici comment classer les actions par niveau de risque :
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Type d'action</th><th>Exemples</th><th>Automatisable ?</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Lecture seule</td>
+        <td>Fetch Notion, lire Slack, analyser</td>
+        <td>✅ Oui, sans hésiter</td>
+      </tr>
+      <tr>
+        <td>Brouillon</td>
+        <td>Composer un message, préparer un ticket</td>
+        <td>✅ Oui — c'est juste une préparation</td>
+      </tr>
+      <tr>
+        <td>Envoi réversible</td>
+        <td>Message Slack (peut être supprimé)</td>
+        <td>⚠️ Oui si tu fais confiance au skill</td>
+      </tr>
+      <tr>
+        <td>Écriture Notion</td>
+        <td>Créer un ticket, modifier une page</td>
+        <td>⚠️ Avec idempotence, oui</td>
+      </tr>
+      <tr>
+        <td>Action irréversible</td>
+        <td>Archiver, supprimer, notifier toute l'équipe</td>
+        <td>❌ Garder la confirmation humaine</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Le pattern "brouillon d'abord"</h3>
+
+  <p>
+    Pour <code>/cloture-semaine</code>, le skill actuel dit déjà
+    "montre avant de poster". Dans un cron sans humain qui regarde,
+    cette confirmation ne peut pas fonctionner comme prévu.
+  </p>
+
+  <p>
+    La solution : utiliser <code>slack_send_message_draft</code>
+    au lieu de <code>slack_send_message</code>. L'outil existe dans Slack MCP
+    et crée un brouillon que tu vois dans Slack avant d'envoyer.
+  </p>
+
+  <pre><code>## Étape 4 — Envoyer sur Slack (version cron)
+
+Si exécuté par un cron (pas d'humain qui regarde) :
+  Appelle slack_send_message_draft sur #échanges-ca-équipe.
+  → Le brouillon apparaît dans Slack pour révision humaine.
+
+Si exécuté manuellement :
+  Montre le message. Attends confirmation. Puis slack_send_message.</code></pre>
+
+  <div class="callout">
+    <strong>Règle à retenir</strong><br />
+    Automatise les <em>opérations</em> (fetch, analyse, composition).
+    Garde la main humaine sur les <em>décisions</em> (envoyer, créer, modifier).
+    Un cron qui produit un brouillon + une validation rapide dans Slack
+    est souvent meilleur qu'un cron entièrement autonome.
+  </div>
+
+  <!-- ─── 4. SYNTAXE CRON PRATIQUE ─────────────────────────────────────── -->
+  <h2>4. Syntaxe cron — les cas MZD</h2>
+
+  <pre><code>┌─────── minute (0–59)
+│ ┌───── heure (0–23)
+│ │ ┌─── jour du mois (1–31)
+│ │ │ ┌─ mois (1–12)
+│ │ │ │ └ jour de la semaine (0=dim, 1=lun … 5=ven, 6=sam)
+│ │ │ │ │
+3 17 * * 5    → chaque vendredi à 17h03  (/cloture-semaine)
+7  9 * * 1    → chaque lundi à 9h07      (/brief-hebdo)
+0  8 * * 1-5  → chaque jour de semaine à 8h  (rappel)
+0 10 1 * *    → le 1er de chaque mois à 10h</code></pre>
+
+  <!-- ─── 5. LE CRON CLOTURE-SEMAINE ───────────────────────────────────── -->
+  <h2>5. Créer le cron /cloture-semaine</h2>
+
+  <p>
+    Voici l'appel complet pour programmer la clôture de semaine automatique :
+  </p>
+
+  <pre><code>CronCreate({
+  cron: "3 17 * * 5",
+  prompt: `C'est vendredi vers 17h — heure de clôture de semaine MZD.
+
+Exécute le skill défini dans :
+  .agents/skills/cloture-semaine/SKILL.md
+
+Avant de commencer, lis :
+  reference/slack-channels.md
+  reference/notion-structure.md
+
+À l'étape 4 (envoi Slack), envoie un brouillon avec
+slack_send_message_draft plutôt que slack_send_message,
+pour permettre une révision humaine avant publication.`,
+  durable: true,
+  recurring: true
+})</code></pre>
+
+  <p>
+    Ce cron crée un fichier <code>.claude/scheduled_tasks.json</code>
+    dans ton repo — il survit aux redémarrages de Claude Code.
+    Il se répète chaque vendredi et s'auto-expire après 7 jours
+    (à recréer ensuite).
+  </p>
+
+  <h3>Consulter et supprimer les crons</h3>
+
+  <pre><code>CronList()           // voir tous les crons actifs
+CronDelete("job-id") // supprimer un cron par son ID</code></pre>
+
+  <!-- ─── QUIZ ─────────────────────────────────────────────────────────── -->
+  <h2>Quiz</h2>
+
+  <!-- Q1 -->
+  <div class="quiz-block" id="q1">
+    <p class="quiz-question">
+      Pourquoi un prompt de cron doit-il inclure le chemin du SKILL.md
+      et les reference docs à lire ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Parce que Claude oublie les skills entre les sessions
+      </button>
+      <button class="quiz-option" onclick="answer('q1', true)">
+        Parce que le cron démarre sans contexte conversationnel —
+        Claude doit tout trouver dans le prompt et les fichiers
+      </button>
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Parce que CronCreate ne connaît pas les skills
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q1-feedback"></p>
+  </div>
+
+  <!-- Q2 -->
+  <div class="quiz-block" id="q2">
+    <p class="quiz-question">
+      Le cron /cloture-semaine envoie un brouillon Slack au lieu
+      du message final. Quel outil utilise-t-il ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q2', false)">
+        <code>slack_send_message</code> avec un flag "draft"
+      </button>
+      <button class="quiz-option" onclick="answer('q2', true)">
+        <code>slack_send_message_draft</code> — un outil dédié
+        qui crée un brouillon visible dans Slack avant envoi
+      </button>
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Il ne peut pas envoyer de message dans un cron
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q2-feedback"></p>
+  </div>
+
+  <!-- Q3 -->
+  <div class="quiz-block" id="q3">
+    <p class="quiz-question">
+      Tu veux que le cron survive si tu redémarres Claude Code.
+      Quel paramètre utilises-tu ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q3', false)">
+        <code>recurring: true</code> — il se répète donc il survit
+      </button>
+      <button class="quiz-option" onclick="answer('q3', false)">
+        <code>persistent: true</code>
+      </button>
+      <button class="quiz-option" onclick="answer('q3', true)">
+        <code>durable: true</code> — écrit dans
+        <code>.claude/scheduled_tasks.json</code>
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q3-feedback"></p>
+  </div>
+
+  <!-- ─── CE QU'ON A CONSTRUIT ────────────────────────────────────────── -->
+  <h2>Ce qu'on a appris dans cette leçon</h2>
+
+  <ul>
+    <li>
+      <strong>CronCreate</strong> — planifier un prompt récurrent avec
+      syntaxe cron standard (minute heure jour mois dow)
+    </li>
+    <li>
+      <strong>Prompts de cron robustes</strong> — contexte temporel +
+      chemin du skill + reference docs à lire
+    </li>
+    <li>
+      <strong>Le pattern brouillon</strong> — automatiser la production,
+      garder la main humaine sur l'envoi via
+      <code>slack_send_message_draft</code>
+    </li>
+    <li>
+      <strong>durable: true</strong> — pour que le cron survive aux
+      redémarrages (écrit dans <code>.claude/scheduled_tasks.json</code>)
+    </li>
+    <li>
+      <strong>7-day expiry</strong> — les crons récurrents s'auto-expirent,
+      il faut les recréer chaque semaine (ou les déclencher manuellement)
+    </li>
+  </ul>
+
+  <!-- ─── NAVIGATION ───────────────────────────────────────────────────── -->
+  <nav class="lesson-nav">
+    <a href="0005-ancrer-les-skills-dans-la-realite-mzd.html">← Leçon 5 : Reference docs</a>
+    <span class="lesson-nav-current">Leçon 6</span>
+    <span class="lesson-nav-next">Leçon 7 (à venir)</span>
+  </nav>
+
+</article>
+
+<script>
+  const feedback = {
+    q1: {
+      ok: 'Exact. Un cron démarre comme une session vierge — sans historique de conversation, sans skills "déjà chargés". Le prompt doit être autosuffisant.',
+      ko: 'Pas tout à fait. Ce n\'est pas une question de mémoire entre sessions. C\'est que le cron démarre sans contexte — tout ce que Claude doit savoir doit être dans le prompt ou dans des fichiers qu\'il lit.'
+    },
+    q2: {
+      ok: 'Exact. slack_send_message_draft crée un brouillon que tu vois dans l\'interface Slack avant qu\'il soit posté. C\'est le meilleur compromis pour les crons : automatiser la composition, garder la validation humaine pour l\'envoi.',
+      ko: 'Non. Il n\'y a pas de flag draft sur slack_send_message. L\'outil dédié s\'appelle slack_send_message_draft et crée un vrai brouillon Slack.'
+    },
+    q3: {
+      ok: 'Correct. durable: true écrit le cron dans .claude/scheduled_tasks.json. Sans ce paramètre, le cron est en mémoire uniquement et disparaît quand Claude Code se ferme.',
+      ko: 'Non. recurring: true contrôle la répétition, pas la persistance. Et "persistent" n\'existe pas comme paramètre. C\'est durable: true qui écrit dans .claude/scheduled_tasks.json.'
+    }
+  };
+
+  function answer(questionId, isCorrect) {
+    const block = document.getElementById(questionId);
+    block.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = true);
+    const fb = document.getElementById(questionId + '-feedback');
+    fb.classList.add('visible');
+    fb.textContent = isCorrect ? feedback[questionId].ok : feedback[questionId].ko;
+    fb.classList.toggle('correct', isCorrect);
+    fb.classList.toggle('wrong', !isCorrect);
+  }
+</script>
+</body>
+</html>
