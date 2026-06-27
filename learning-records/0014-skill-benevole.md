@@ -1,0 +1,5 @@
+# Premier skill bénévole — fiche-pole
+
+Quand le destinataire n'est plus l'opérateur, le format et le ton de l'output deviennent des contraintes de conception au même titre que les sources. Différences clés avec un skill opérateur : output sans jargon ni noms d'outils (Notion = "la documentation", Slack = "l'espace de discussion"), ton "accessible" comme leading word, fiche lisible sans connaissance interne. Découverte dynamique : `notion-search` au lieu de `notion-fetch` avec ID hardcodé — les pages de pôles ne sont pas encore dans reference/notion-structure.md, la recherche par nom contourne ce gap. Le skill révèle aussi l'état de l'organisation : pages introuvables et canaux silencieux = information sur l'infrastructure, pas des erreurs. Tous les patterns techniques s'appliquent identiquement : fetch parallèle, repli par source, barrière robuste, leading words. `fiche-pole` créé dans `.agents/skills/fiche-pole/SKILL.md`.
+
+**Implications** : Leçon 15 peut aller plus loin dans la mission bénévoles — soit `improve-skill` méta, soit un skill de guide d'accueil complet qui orchestre plusieurs fiches de pôles.

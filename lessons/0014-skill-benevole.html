@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 14 — Premier skill bénévole</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 14 · Claude Code × MZD</p>
+  <h1>Premier skill bénévole</h1>
+  <p class="lesson-subtitle">
+    Quand le destinataire n'est plus toi — concevoir un skill
+    dont l'output est le produit.
+  </p>
+
+  <!-- ─── RAPPEL ──────────────────────────────────────────────────────────── -->
+  <h2>Où on en est</h2>
+
+  <p>
+    Depuis la leçon 7, tu as appris à écrire des skills robustes pour toi,
+    en tant qu'opérateur : fetch parallèle, gestion des erreurs, leading words,
+    critères de complétion, failure modes, choix d'invocation.
+  </p>
+
+  <p>
+    La mission MZD n'est pas "automatiser la coordination de Gaspard".
+    Elle est <em>"rendre la MZD lisible et vivante pour ses bénévoles"</em>.
+    Le premier skill vraiment aligné sur cette mission ne produit pas un brief
+    pour toi — il produit un document pour quelqu'un qui découvre la MZD.
+  </p>
+
+  <p>
+    On va construire <code>fiche-pole</code> : un skill qui compose une fiche
+    de présentation d'un pôle MZD, lisible par un bénévole qui ne connaît ni
+    Notion, ni Slack, ni les acronymes internes.
+  </p>
+
+  <!-- ─── 1. CE QUI CHANGE ──────────────────────────────────────────────── -->
+  <h2>1. Ce qui change quand le destinataire est un bénévole</h2>
+
+  <p>
+    Les patterns techniques restent les mêmes. Ce qui change, c'est le centre
+    de gravité de la conception.
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th></th><th>Skill opérateur (<code>brief-hebdo-actif</code>)</th><th>Skill bénévole (<code>fiche-pole</code>)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Destinataire</strong></td>
+        <td>Toi — qui connais les outils et le contexte</td>
+        <td>Un bénévole — qui découvre la MZD</td>
+      </tr>
+      <tr>
+        <td><strong>Format de sortie</strong></td>
+        <td>Structuré pour toi (sections, 🔴/🟡/🟢, lien Notion)</td>
+        <td>Lisible sans connaissance interne — aucun jargon, aucun ID</td>
+      </tr>
+      <tr>
+        <td><strong>Ton</strong></td>
+        <td>Dense, technique, décisionnel</td>
+        <td>Accessible, concret, orienté "comment rejoindre"</td>
+      </tr>
+      <tr>
+        <td><strong>Ce qui est invisible</strong></td>
+        <td>Rien — les sources sont citées (section Sources)</td>
+        <td>Tout — Notion/Slack ne sont jamais nommés comme "outils"</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Dans un skill bénévole, <strong>l'output est le produit</strong>.
+    La fiche que Claude compose n'est pas un artefact intermédiaire —
+    c'est ce que le bénévole reçoit. Son format et son ton deviennent
+    des contraintes de conception au même titre que les sources ou les barrières.
+  </p>
+
+  <!-- ─── 2. LE TON COMME LEADING WORD ──────────────────────────────────── -->
+  <h2>2. Le ton comme leading word</h2>
+
+  <p>
+    La leçon 10 a montré que les leading words recrutent des priors du
+    préentraînement. Ça s'applique aussi au ton d'écriture.
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">Instruction de ton en prose</div>
+      <div class="compare-body">
+        <em>"Rédige de façon simple et compréhensible pour quelqu'un
+        qui n'est pas familier avec les outils et le vocabulaire interne
+        de l'association. Évite les termes techniques. Utilise des
+        phrases courtes."</em><br /><br />
+        5 lignes. Claude va interpréter "simple" à sa manière.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Leading word de ton</div>
+      <div class="compare-body">
+        <em>"Format accessible — destinataire = bénévole qui découvre
+        la MZD, aucune connaissance des outils internes."</em><br /><br />
+        "Accessible" recrute un prior précis : sans jargon, phrases
+        courtes, orienté action. Claude sait ce que ça veut dire
+        — il en a vu des milliers d'exemples.
+      </div>
+    </div>
+  </div>
+
+  <p>
+    La contrainte clé : aucun outil ne doit apparaître en tant que tel
+    dans l'output. "Rejoint le canal Slack" devient "rejoint l'espace
+    de discussion". "Page Notion" devient "la documentation". Le bénévole
+    n'a pas besoin de savoir qu'on utilise Notion pour bénéficier de l'information.
+  </p>
+
+  <!-- ─── 3. NOTION-SEARCH PLUTÔT QUE NOTION-FETCH ──────────────────────── -->
+  <h2>3. Découverte dynamique vs ID hardcodé</h2>
+
+  <p>
+    Pour <code>brief-hebdo-actif</code>, tu fetches la base "Tâches MZD"
+    avec un ID connu, stocké dans <code>reference/notion-structure.md</code>.
+    Pour <code>fiche-pole</code>, tu n'as pas encore les IDs des pages de pôles
+    dans ton reference file.
+  </p>
+
+  <p>
+    Il y a deux façons de gérer ça :
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Approche</th><th>Quand l'utiliser</th><th>Limite</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>notion-fetch avec ID</strong></td>
+        <td>Page stable, souvent fetchée — ID dans reference/notion-structure.md</td>
+        <td>Nécessite d'avoir enrichi le reference file à l'avance</td>
+      </tr>
+      <tr>
+        <td><strong>notion-search avec le nom</strong></td>
+        <td>Page découverte dynamiquement — on ne connaît pas l'ID à l'avance</td>
+        <td>Peut retourner plusieurs résultats — prendre le plus pertinent</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Pour <code>fiche-pole</code>, on utilise <strong>notion-search</strong>
+    avec le nom du pôle. C'est plus flexible — le skill fonctionne même si
+    les IDs ne sont pas encore dans le reference file. Et ça révèle ce qu'il
+    faudra éventuellement enrichir.
+  </p>
+
+  <div class="callout">
+    <strong>Règle pratique</strong><br />
+    Un skill qui fonctionne révèle ce qui manque dans l'infrastructure.
+    <code>fiche-pole</code> montrera quelles pages Notion sont bien
+    organisées et lesquelles sont introuvables. C'est de l'information —
+    pas un bug.
+  </div>
+
+  <!-- ─── 4. LE SKILL ──────────────────────────────────────────────────── -->
+  <h2>4. <code>fiche-pole</code> — le SKILL.md</h2>
+
+  <p>
+    Voici le skill complet. Repère les patterns connus.
+  </p>
+
+  <pre><code>---
+name: fiche-pole
+description: >
+  Compose a readable pôle fact sheet for MZD volunteers — search the
+  pôle's Notion page, fetch its Slack activity, format for non-technical
+  audiences. Use when onboarding a volunteer or answering
+  "what does pôle X do?"
+---
+
+## Contexte à lire avant de commencer
+
+- `reference/slack-channels.md` — canaux Slack des pôles (IDs)
+
+## Étape 0 — Identifier le pôle
+
+Le pôle est nommé dans la demande.
+Identifier son canal Slack dans reference/slack-channels.md.
+Si aucun canal correspondant → noter "Slack : aucun canal trouvé", continuer.
+
+## Étape 1 — Fetch (en parallèle)
+
+a) `notion-search` avec le nom du pôle
+   → Prendre la page dont le titre correspond le mieux
+   Si aucun résultat → noter "Notion : page pôle introuvable", continuer
+
+b) `slack_read_channel` sur le canal du pôle
+   → ID dans reference/slack-channels.md
+   Pour les 14 derniers jours
+   Si silencieux → noter "canal silencieux depuis 14 jours", continuer
+   Si erreur → noter "Slack : indisponible", continuer
+
+Continue quand toutes les tentatives sont terminées,
+qu'elles aient réussi ou non.
+
+## Étape 2 — Composer la fiche
+
+Format accessible — destinataire = bénévole qui découvre la MZD,
+aucune connaissance des outils internes.
+
+**[Nom du pôle]**
+_[Mission en une phrase — ce que fait le pôle concrètement]_
+
+**Ce qu'on fait**
+[2-3 activités concrètes — sans jargon, sans noms d'outils]
+
+**Comment s'investir**
+[Action concrète : "rejoins l'espace de discussion #..." ou "contacte [prénom]"]
+
+**Ce qui se passe en ce moment**
+[Résumé de l'activité des 14 derniers jours — sans IDs ni références techniques
+ Si silencieux → "Le pôle est peu actif en ce moment."]
+
+**Pour aller plus loin**
+[Où trouver les infos — canal + documentation — présentés sans nommer les outils]
+
+Règle : aucun acronyme non défini, aucune mention de Notion/Slack comme
+"outils", aucun ID visible. Notion = "la documentation", Slack = "l'espace
+de discussion".
+
+Continue quand la fiche est complète et lisible sans connaissance interne.</code></pre>
+
+  <!-- ─── 5. PATTERNS CONNUS ────────────────────────────────────────────── -->
+  <h2>5. Les patterns que tu reconnais</h2>
+
+  <p>
+    Rien de nouveau dans ce skill — seulement des patterns connus, réassemblés
+    pour un nouveau but.
+  </p>
+
+  <ul>
+    <li>
+      <strong>Étape 0</strong> — reference file comme source de vérité.
+      Même pattern que <code>brief-hebdo-actif</code>.
+    </li>
+    <li>
+      <strong>Fetch parallèle + repli par source</strong> — leçons 8 et 9.
+      Chaque source a son instruction de repli. Le skill avance même si
+      Notion est introuvable.
+    </li>
+    <li>
+      <strong>Barrière robuste</strong> — "tentatives terminées, qu'elles
+      aient réussi ou non" — leçon 11.
+    </li>
+    <li>
+      <strong>Leading words</strong> — "accessible" pour le ton, "compose"
+      dans la description — leçon 10.
+    </li>
+    <li>
+      <strong>User-invoked</strong> — pas de side effects ici (lecture
+      + composition), mais usage délibéré — leçon 13.
+      Tu l'appelles quand un bénévole te demande "c'est quoi le pôle X ?".
+    </li>
+  </ul>
+
+  <!-- ─── 6. CE QUE LE SKILL VA RÉVÉLER ────────────────────────────────── -->
+  <h2>6. Ce que le skill va révéler en pratique</h2>
+
+  <p>
+    La première fois que tu utilises <code>fiche-pole</code> sur le pôle boutique,
+    tu vas probablement découvrir l'une de ces situations :
+  </p>
+
+  <ul>
+    <li>
+      <strong>Notion : page introuvable</strong> — le pôle n'a pas de page
+      structurée dans Notion. La fiche sera basée seulement sur Slack.
+      C'est de l'information : cette page est à créer.
+    </li>
+    <li>
+      <strong>Slack : canal silencieux</strong> — le canal du pôle n'a pas
+      d'activité récente. La fiche le mentionne honnêtement.
+      C'est aussi de l'information : le pôle est peut-être inactif.
+    </li>
+    <li>
+      <strong>Les deux disponibles</strong> — la fiche est riche.
+      Tu sais que l'infrastructure de ce pôle est en ordre.
+    </li>
+  </ul>
+
+  <p>
+    Un skill bénévole est aussi un <strong>outil de diagnostic de l'organisation</strong> :
+    il révèle quels pôles sont documentés, lesquels sont actifs, et lesquels
+    ont disparu de la surface visible de la MZD.
+  </p>
+
+  <!-- ─── QUIZ ─────────────────────────────────────────────────────────── -->
+  <h2>Quiz</h2>
+
+  <!-- Q1 -->
+  <div class="quiz-block" id="q1">
+    <p class="quiz-question">
+      Pourquoi <code>fiche-pole</code> utilise <code>notion-search</code>
+      plutôt que <code>notion-fetch</code> avec un ID ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Parce que notion-fetch est trop lent pour ce cas d'usage
+      </button>
+      <button class="quiz-option" onclick="answer('q1', true)">
+        Parce que les IDs des pages de pôles ne sont pas encore dans
+        reference/notion-structure.md — notion-search permet une
+        découverte dynamique sans avoir enrichi le reference file à l'avance
+      </button>
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Parce que notion-search retourne plus de contenu qu'un fetch direct
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q1-feedback"></p>
+  </div>
+
+  <!-- Q2 -->
+  <div class="quiz-block" id="q2">
+    <p class="quiz-question">
+      La fiche produite par <code>fiche-pole</code> ne doit jamais mentionner
+      "Notion" ou "Slack" directement. Pourquoi ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Pour des raisons légales — ces marques ne peuvent pas être citées
+        dans un document associatif
+      </button>
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Pour que le skill reste compatible si on change d'outils
+      </button>
+      <button class="quiz-option" onclick="answer('q2', true)">
+        Parce que le destinataire est un bénévole qui découvre la MZD —
+        les noms d'outils créent une friction inutile. L'information compte,
+        pas le canal par lequel elle circule.
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q2-feedback"></p>
+  </div>
+
+  <!-- Q3 -->
+  <div class="quiz-block" id="q3">
+    <p class="quiz-question">
+      Tu lances <code>fiche-pole</code> sur le pôle animation et Notion
+      retourne "aucune page trouvée". Que fait le skill ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Il s'arrête et demande à l'opérateur d'ajouter l'ID dans
+        reference/notion-structure.md avant de continuer
+      </button>
+      <button class="quiz-option" onclick="answer('q3', true)">
+        Il note "Notion : page pôle introuvable", continue, et compose
+        la fiche à partir de Slack seul — en indiquant honnêtement
+        l'absence de documentation structurée
+      </button>
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Il cherche une page approximative et l'utilise même si le titre
+        ne correspond pas exactement
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q3-feedback"></p>
+  </div>
+
+  <!-- ─── CE QU'ON A APPRIS ─────────────────────────────────────────────── -->
+  <h2>Ce qu'on a appris dans cette leçon</h2>
+
+  <ul>
+    <li>
+      <strong>L'output est le produit</strong> — dans un skill bénévole,
+      le format et le ton de la sortie sont des contraintes de conception
+      au même titre que les sources
+    </li>
+    <li>
+      <strong>Le ton comme leading word</strong> — "accessible" et
+      "destinataire = bénévole qui découvre la MZD" recrutent le bon registre
+      d'écriture sans prose explicative
+    </li>
+    <li>
+      <strong>notion-search pour la découverte dynamique</strong> — quand les IDs
+      ne sont pas encore dans le reference file, notion-search permet de démarrer
+      sans blocage
+    </li>
+    <li>
+      <strong>Un skill révèle l'état de l'organisation</strong> — les pages
+      introuvables et les canaux silencieux sont de l'information, pas des erreurs
+    </li>
+    <li>
+      <strong>Tous les patterns techniques restent</strong> — fetch parallèle,
+      repli par source, barrière robuste, leading words — rien de nouveau,
+      juste un nouveau destinataire
+    </li>
+  </ul>
+
+  <!-- ─── NAVIGATION ───────────────────────────────────────────────────── -->
+  <nav class="lesson-nav">
+    <a href="0013-context-load-vs-cognitive-load.html">← Leçon 13 : Context load vs cognitive load</a>
+    <span class="lesson-nav-current">Leçon 14</span>
+    <span class="lesson-nav-next">Leçon 15 (à venir)</span>
+  </nav>
+
+</article>
+
+<script>
+  const feedback = {
+    q1: {
+      ok: 'Exact. Les IDs des pages de pôles n\'ont pas encore été ajoutés à reference/notion-structure.md. notion-search avec le nom du pôle permet une découverte dynamique : Claude cherche la page dont le titre correspond le mieux, sans avoir besoin d\'un ID préenregistré. C\'est plus flexible pour un skill en démarrage — et ça révèle au passage quelles pages sont bien nommées dans Notion.',
+      ko: 'Non. notion-fetch et notion-search ont des vitesses comparables. La raison est structurelle : les IDs des pages de pôles ne sont pas dans reference/notion-structure.md. Sans ID, impossible d\'utiliser notion-fetch. notion-search contourne ce gap et permet de démarrer le skill sans bloquer sur une étape d\'infrastructure.'
+    },
+    q2: {
+      ok: 'Exact. Le bénévole qui reçoit la fiche n\'a pas besoin de savoir qu\'on utilise Notion et Slack. Ce qui l\'intéresse : où trouver l\'information, comment rejoindre le pôle, qui contacter. "L\'espace de discussion" et "la documentation" communicent ces idées sans créer de friction sur les outils. Le skill absorbe la complexité technique pour que l\'output soit directement utilisable.',
+      ko: 'Non. Ce n\'est ni une question légale ni une question de migration d\'outils. C\'est une question d\'audience : Notion et Slack sont des noms d\'outils qui ne signifient rien pour quelqu\'un qui découvre la MZD. Les mentionner ajoute du bruit sans valeur pour le destinataire. L\'information qui compte est "où" et "comment", pas "via quel outil".'
+    },
+    q3: {
+      ok: 'Exact. C\'est exactement le pattern de gestion des erreurs de la leçon 9 appliqué à un contexte bénévole. Le skill note l\'absence ("Notion : page pôle introuvable"), continue sans bloquer, et compose la fiche avec ce qui est disponible — en l\'occurrence, l\'activité Slack seule. La fiche peut alors mentionner honnêtement qu\'il n\'y a pas encore de documentation structurée pour ce pôle. C\'est de l\'information utile pour toi en tant qu\'opérateur.',
+      ko: 'Non. Le skill ne bloque pas sur une ressource manquante — c\'est exactement ce qu\'on a appris en leçon 9. Et utiliser une page approximative serait halluciner : si le titre ne correspond pas, le contenu ne concerne peut-être pas ce pôle. La règle est invariable : signaler honnêtement, ne jamais inventer.'
+    }
+  };
+
+  function answer(questionId, isCorrect) {
+    const block = document.getElementById(questionId);
+    block.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = true);
+    const fb = document.getElementById(questionId + '-feedback');
+    fb.classList.add('visible');
+    fb.textContent = isCorrect ? feedback[questionId].ok : feedback[questionId].ko;
+    fb.classList.toggle('correct', isCorrect);
+    fb.classList.toggle('wrong', !isCorrect);
+  }
+</script>
+</body>
+</html>
