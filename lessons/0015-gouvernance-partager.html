@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 15 — Gouvernance partager</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 15 · Claude Code × MZD</p>
+  <h1>Gouvernance partager</h1>
+  <p class="lesson-subtitle">
+    Rendre la structure MZD visible pour les bénévoles —
+    du document Notion éparpillé au résumé partagé sur Slack.
+  </p>
+
+  <!-- ─── RAPPEL ──────────────────────────────────────────────────────────── -->
+  <h2>Où on en est</h2>
+
+  <p>
+    Tu as construit les skills opérationnels : <code>brief-hebdo-actif</code>
+    fetche le contexte chaque semaine, triage les blocages, et alerte l'équipe.
+    Tes skills sont robustes — failure modes connus, critères de complétion
+    explicites, invocation calibrée.
+  </p>
+
+  <p>
+    La mission MZD a quatre objectifs. Le premier — le brief hebdomadaire —
+    est opérationnel. Le quatrième reste entier :
+  </p>
+
+  <div class="callout">
+    <strong>Objectif mission restant</strong>
+    La structure de gouvernance est lisible : les instances (CA, réunions de
+    pôle, journées bénévoles) sont connues et leur rôle est compris.
+    Un bénévole qui arrive identifie clairement où sont les informations,
+    comment s'investir, et qui contacter.
+  </div>
+
+  <p>
+    Cette leçon construit <code>gouvernance-partager</code> — le skill qui
+    rend la gouvernance MZD visible.
+  </p>
+
+  <!-- ─── 1. LE PROBLÈME INVISIBLE ─────────────────────────────────────── -->
+  <h2>1. Le problème invisible</h2>
+
+  <p>
+    Un nouveau bénévole qui rejoint la MZD fait face à un ensemble de
+    questions sans réponse apparente :
+  </p>
+
+  <ul>
+    <li>Qui compose le CA ? Qui est le bureau ?</li>
+    <li>Quelles sont les instances de décision, et que décident-elles ?</li>
+    <li>Quand se réunissent les pôles ? Comment m'impliquer dans le mien ?</li>
+    <li>Qui contacter si j'ai une idée, un problème, une demande ?</li>
+  </ul>
+
+  <p>
+    Ces réponses <em>existent</em> quelque part dans Notion. Mais elles sont
+    dispersées — une page par instance, un doc par pôle, une présentation
+    datant de l'AG de l'an passé. Aucun bénévole n'a le temps de les rassembler.
+  </p>
+
+  <p>
+    Le skill <code>gouvernance-partager</code> fetche ces pages Notion,
+    les synthétise, et produit un résumé clair — partageable sur Slack
+    ou publié comme page d'accueil Notion pour les bénévoles.
+  </p>
+
+  <!-- ─── 2. DONNÉES STABLES VS DYNAMIQUES ─────────────────────────────── -->
+  <h2>2. Données stables vs données dynamiques</h2>
+
+  <p>
+    Ce skill est différent de <code>brief-hebdo-actif</code>.
+    La différence n'est pas dans la technique — c'est dans la <strong>nature
+    des données</strong> qu'il fetche.
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th></th>
+        <th>brief-hebdo-actif</th>
+        <th>gouvernance-partager</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Type de données</strong></td>
+        <td>Dynamiques — tâches, blocages, événements de la semaine</td>
+        <td>Stables — instances, rôles, structure de gouvernance</td>
+      </tr>
+      <tr>
+        <td><strong>Fréquence</strong></td>
+        <td>Hebdomadaire — le contexte change chaque semaine</td>
+        <td>Ponctuelle — quand la structure change (nouveau CA, nouveau pôle)</td>
+      </tr>
+      <tr>
+        <td><strong>Durée de vie</strong></td>
+        <td>Une semaine — le brief est périmé le lundi suivant</td>
+        <td>Plusieurs mois — le résumé reste valide jusqu'au prochain changement</td>
+      </tr>
+      <tr>
+        <td><strong>Output</strong></td>
+        <td>Rapport éphémère — consommé immédiatement</td>
+        <td>Document de référence — consulté dans le temps</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Cette distinction est essentielle : un skill qui produit un
+    <strong>document de référence</strong> a des exigences différentes
+    d'un skill qui produit un <strong>rapport opérationnel</strong>.
+    Le document doit être daté, sourcé, et ne contenir que
+    ce qui reste vrai dans trois mois.
+  </p>
+
+  <!-- ─── 3. LE PATTERN "ORIENT" ───────────────────────────────────────── -->
+  <h2>3. Le pattern "orient"</h2>
+
+  <p>
+    Dans les leçons précédentes, tu as utilisé le pattern <em>triage</em> :
+    fetch → classer → alerter. C'est le pattern du brief hebdomadaire.
+  </p>
+
+  <p>
+    <code>gouvernance-partager</code> suit un pattern différent : <em>orient</em>.
+    Il produit quelque chose que les bénévoles pourront <em>consulter</em>
+    plutôt que <em>consommer</em>.
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">Pattern triage (brief-hebdo)</div>
+      <div class="compare-body">
+        <strong>fetch → classer → alerter</strong><br /><br />
+        Produit : liste de tâches urgentes, alertes Slack,
+        actions à prendre cette semaine.<br /><br />
+        Durée de vie : 7 jours.<br />
+        Périmé le lundi suivant.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Pattern orient (gouvernance-partager)</div>
+      <div class="compare-body">
+        <strong>fetch → synthétiser → publier</strong><br /><br />
+        Produit : vue d'ensemble structurée des instances,
+        rôles, et points d'entrée pour les bénévoles.<br /><br />
+        Durée de vie : plusieurs mois.<br />
+        Valide jusqu'au prochain changement structurel.
+      </div>
+    </div>
+  </div>
+
+  <p>
+    Le critère de complétion change : un brief hebdomadaire est complet quand
+    tous les blocages sont triés. Un document de gouvernance est complet quand
+    un bénévole qui le lit comprend la structure sans avoir besoin d'aide.
+  </p>
+
+  <!-- ─── 4. CONCEPTION DU SKILL ───────────────────────────────────────── -->
+  <h2>4. Conception du skill</h2>
+
+  <p>
+    Voici la structure complète de <code>gouvernance-partager</code>.
+    Chaque étape découle des principes que tu as appris :
+    context load injecté depuis les reference files, critère de complétion
+    explicite, side effects déclarés, invocation user-invoked.
+  </p>
+
+  <pre><code>---
+name: gouvernance-partager
+description: >
+  Orient new volunteers — fetch MZD governance structure from Notion
+  (CA, bureau, pôles, assemblées), synthesize instances, roles, and
+  decision processes into a readable summary, and share it on Slack
+  or update the Notion volunteer welcome page.
+  Run when a new volunteer joins, when structure changes, or when
+  governance needs to be made visible to the team.
+argument-hint: "[canal Slack cible ou ID page Notion cible]"
+---
+
+## Objectif
+
+Produire un résumé clair et sourcé de la gouvernance MZD à destination
+des bénévoles — depuis les pages Notion officielles, sans connaissances
+préalables requises.
+
+## Étape 0 — Charger le contexte
+
+Lire `reference/notion-structure.html` pour les IDs de pages.
+Identifier les pages ciblées :
+- Page Gouvernance (vue d'ensemble)
+- Page CA + bureau
+- Pages de chaque pôle
+- Pages des instances récurrentes (AG, journées bénévoles)
+
+Si `reference/notion-structure.html` est absent ou incomplet,
+arrêter et signaler : "Référence Notion manquante — exécuter d'abord
+le skill `fetch-reference-docs` pour cartographier la structure."
+
+## Étape 1 — Fetcher la structure de gouvernance
+
+Pour chaque instance identifiée dans les references, fetcher depuis Notion :
+- Nom complet et acronyme
+- Rôle et périmètre de décision
+- Composition (membres, si disponibles)
+- Fréquence et format des réunions
+- Lien vers la page Notion source
+
+Ne pas inférer ou compléter depuis la mémoire paramétrique.
+Si une information est absente de Notion, la marquer [non renseigné].
+
+## Étape 2 — Synthétiser
+
+Produire un document structuré en 4 blocs :
+
+**Bloc 1 — Vue d'ensemble**
+Qui gouverne la MZD, comment les décisions sont prises, rôle des bénévoles.
+
+**Bloc 2 — Les instances**
+Pour chaque instance : nom, rôle, composition, fréquence, périmètre de décision.
+Ordre : du plus stratégique (CA) au plus opérationnel (réunions de pôle).
+
+**Bloc 3 — Comment s'impliquer**
+Points d'entrée concrets pour un bénévole selon son profil :
+- Je veux proposer une idée → qui contacter
+- Je veux rejoindre un pôle → comment faire
+- Je veux comprendre une décision → où chercher
+
+**Bloc 4 — Sources et date**
+Liste des pages Notion consultées.
+Date de génération : {{date}}.
+Mention explicite : "Ce document reflète la structure au {{date}}.
+En cas de changement, relancer gouvernance-partager."
+
+## Étape 3 — Publier
+
+Si un canal Slack est fourni en argument : envoyer le résumé dans ce canal.
+Si un ID de page Notion est fourni : mettre à jour cette page.
+Si aucun argument : afficher le résumé dans la conversation et
+demander confirmation avant de publier.
+
+## Critère de complétion
+
+✓ Toutes les instances de gouvernance tracées dans Notion sont mentionnées
+✓ Chaque information est sourcée (lien Notion ou ID de page)
+✓ Aucune structure ou rôle inventé — seulement ce qui est dans Notion
+✓ Le document contient sa date de génération
+✓ Un bénévole externe peut comprendre la structure sans aide supplémentaire</code></pre>
+
+  <!-- ─── 5. LE GARDE-FOU DE LA STABILITÉ ─────────────────────────────── -->
+  <h2>5. Le garde-fou de la stabilité</h2>
+
+  <p>
+    Parce que la gouvernance change rarement, le skill comporte un risque
+    spécifique : produire un document <em>daté mais non mis à jour</em>.
+    Si le CA change de composition et que le document reste inchangé sur
+    Notion, les bénévoles lisent une gouvernance obsolète.
+  </p>
+
+  <div class="callout warn">
+    <strong>Règle stabilité → fraîcheur explicite</strong>
+    Tout document produit par un skill "stable" doit mentionner
+    sa date de génération et indiquer comment le renouveler.
+    Plus un document est durable, plus il doit être explicitement daté.
+  </div>
+
+  <p>
+    Le critère de complétion inclut cette date pour cette raison.
+    Ce n'est pas un détail cosmétique — c'est la signature de fraîcheur
+    qui permet au lecteur de juger si le document est encore fiable.
+  </p>
+
+  <p>
+    Trois contenus à ne jamais inclure dans un document de gouvernance,
+    parce qu'ils sont dynamiques :
+  </p>
+
+  <ul>
+    <li>L'agenda de la prochaine réunion de CA</li>
+    <li>Les tâches en cours dans chaque pôle</li>
+    <li>Les bénévoles actuellement actifs ou absents</li>
+  </ul>
+
+  <p>
+    Ces informations appartiennent au <code>brief-hebdo-actif</code>.
+    Les deux skills sont complémentaires — l'un donne la structure,
+    l'autre donne le contexte opérationnel de la semaine.
+  </p>
+
+  <!-- ─── QUIZ ──────────────────────────────────────────────────────────── -->
+  <h2>Quiz</h2>
+
+  <!-- Q1 -->
+  <div class="quiz-block" id="q1">
+    <p class="quiz-question">
+      Un nouveau bénévole vient d'être intégré et demande
+      "comment fonctionne la MZD ?" Quel skill invoques-tu ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q1', false)">
+        brief-hebdo-actif — il contient toutes les informations
+        sur ce qui se passe à la MZD
+      </button>
+      <button class="quiz-option" onclick="answer('q1', true)">
+        gouvernance-partager — il produit un résumé structurel
+        valide sur la durée, adapté à l'orientation d'un nouveau bénévole
+      </button>
+      <button class="quiz-option" onclick="answer('q1', false)">
+        aucun skill — tu lui expliques de vive voix,
+        les skills ne sont pas faits pour ça
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q1-feedback"></p>
+  </div>
+
+  <!-- Q2 -->
+  <div class="quiz-block" id="q2">
+    <p class="quiz-question">
+      Le CA vient d'élire un nouveau bureau lors de l'AG.
+      À quel moment lances-tu gouvernance-partager ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Immédiatement après le vote — pour informer les bénévoles
+        le plus vite possible
+      </button>
+      <button class="quiz-option" onclick="answer('q2', true)">
+        Après que Notion a été mis à jour avec la nouvelle composition —
+        le skill fetche Notion, pas le vote oral
+      </button>
+      <button class="quiz-option" onclick="answer('q2', false)">
+        La semaine suivante, lors du prochain brief hebdomadaire —
+        pour grouper les annonces
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q2-feedback"></p>
+  </div>
+
+  <!-- Q3 -->
+  <div class="quiz-block" id="q3">
+    <p class="quiz-question">
+      Parmi ces trois contenus, lequel a sa place dans
+      le document produit par gouvernance-partager ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q3', false)">
+        L'agenda de la prochaine réunion de CA et les points
+        à l'ordre du jour
+      </button>
+      <button class="quiz-option" onclick="answer('q3', false)">
+        La liste des tâches en retard dans chaque pôle
+        et les bénévoles responsables
+      </button>
+      <button class="quiz-option" onclick="answer('q3', true)">
+        Le rôle du CA, sa composition, son périmètre de décision,
+        et la fréquence de ses réunions
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q3-feedback"></p>
+  </div>
+
+  <!-- ─── CE QU'ON A APPRIS ─────────────────────────────────────────────── -->
+  <h2>Ce qu'on a appris dans cette leçon</h2>
+
+  <ul>
+    <li>
+      <strong>Données stables vs dynamiques</strong> — la gouvernance change
+      rarement ; ce n'est pas le même type de données que les tâches
+      hebdomadaires. Le skill s'en charge différemment.
+    </li>
+    <li>
+      <strong>Pattern orient vs pattern triage</strong> —
+      fetch → synthétiser → publier produit un document de référence
+      durable, pas un rapport éphémère.
+    </li>
+    <li>
+      <strong>Critère de complétion étendu</strong> — pour un document
+      stable, "complet" inclut la date de génération et les sources.
+      Un lecteur doit pouvoir évaluer la fraîcheur du document lui-même.
+    </li>
+    <li>
+      <strong>Séparation des responsabilités</strong> —
+      <code>gouvernance-partager</code> décrit la structure ;
+      <code>brief-hebdo-actif</code> décrit le contexte opérationnel.
+      Les deux sont complémentaires et ne doivent pas se chevaucher.
+    </li>
+    <li>
+      <strong>La règle de fraîcheur explicite</strong> — plus un
+      document est durable, plus sa date doit être visible.
+      L'ancienneté d'un document de référence est une information utile,
+      pas un détail.
+    </li>
+  </ul>
+
+  <!-- ─── SOURCE RECOMMANDÉE ───────────────────────────────────────────── -->
+  <h2>Source recommandée</h2>
+
+  <p>
+    Pour approfondir la conception de skills orientés vers la documentation
+    et le partage de connaissance, relis
+    <a href="../.agents/skills/writing-great-skills/SKILL.md"><code>writing-great-skills/SKILL.md</code></a>
+    — particulièrement la section sur le <em>context load</em> et les
+    fichiers reference. Un document de gouvernance bien construit devient
+    lui-même un reference file pour les skills qui en ont besoin.
+  </p>
+
+  <!-- ─── ASK-BOX ──────────────────────────────────────────────────────── -->
+  <div class="ask-box">
+    <strong>Une question ?</strong> Demande à ton agent — il est là pour
+    clarifier, approfondir, ou t'aider à adapter ce skill à la réalité
+    actuelle de la MZD. "Comment trouver les IDs Notion des pages de
+    gouvernance ?" est une bonne question de départ.
+  </div>
+
+  <!-- ─── NAVIGATION ───────────────────────────────────────────────────── -->
+  <nav class="lesson-nav">
+    <a href="0013-context-load-vs-cognitive-load.html">← Leçon 13 : Context load vs cognitive load</a>
+    <span class="lesson-nav-current">Leçon 15</span>
+    <span class="lesson-nav-next">Leçon 16 (à venir)</span>
+  </nav>
+
+</article>
+
+<script>
+  const feedback = {
+    q1: {
+      ok: 'Exact. brief-hebdo-actif est conçu pour le contexte opérationnel de la semaine — tâches, blocages, alertes. Un nouveau bénévole a besoin de comprendre la structure, pas de recevoir le triage de la semaine. gouvernance-partager produit un résumé durable des instances, rôles, et points d\'entrée — exactement ce dont quelqu\'un qui découvre la MZD a besoin.',
+      ko: 'Non. brief-hebdo-actif contient le contexte opérationnel de la semaine — blocages, tâches urgentes, alertes. C\'est périssable. Un nouveau bénévole a besoin de comprendre la structure de gouvernance, pas de recevoir une liste de tâches. gouvernance-partager produit le bon type de contenu : un résumé structurel valide sur la durée.'
+    },
+    q2: {
+      ok: 'Exact. Le skill fetche depuis Notion — si Notion n\'est pas encore mis à jour, le skill produira un document avec l\'ancienne composition. La règle est simple : gouvernance-partager reflète Notion au moment où il s\'exécute. Lance-le quand Notion est à jour, pas avant.',
+      ko: 'Non. Le timing n\'est pas lié au vote ou au brief hebdomadaire — il est lié à Notion. Le skill fetche depuis Notion. Si tu le lances avant que Notion soit mis à jour avec le nouveau bureau, il produira un document incorrect. La bonne fenêtre : dès que la personne responsable de Notion a mis à jour la page CA avec la nouvelle composition.'
+    },
+    q3: {
+      ok: 'Exact. Le rôle, la composition, le périmètre, la fréquence — ce sont des informations structurelles stables. Elles changent rarement (élections, changements de statuts) et restent valides plusieurs mois. L\'agenda et les tâches sont dynamiques — ils appartiennent au brief-hebdo-actif, pas à un document de gouvernance.',
+      ko: 'Non. L\'agenda de réunion et les tâches en retard sont des données dynamiques — elles changent chaque semaine, parfois chaque jour. Les inclure dans un document de gouvernance le rendrait périmé en quelques jours. gouvernance-partager ne contient que ce qui est structurellement stable : rôles, instances, périmètres de décision, fréquences de réunion.'
+    }
+  };
+
+  function answer(questionId, isCorrect) {
+    const block = document.getElementById(questionId);
+    block.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = true);
+    const fb = document.getElementById(questionId + '-feedback');
+    fb.classList.add('visible');
+    fb.textContent = isCorrect ? feedback[questionId].ok : feedback[questionId].ko;
+    fb.classList.toggle('correct', isCorrect);
+    fb.classList.toggle('wrong', !isCorrect);
+  }
+</script>
+</body>
+</html>
