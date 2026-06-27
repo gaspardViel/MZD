@@ -42,6 +42,12 @@
 
 ## Canaux pôles / groupes de travail
 
+### #pôle-communauté
+- **ID** : `C0APNRJDV9S`
+- **Type** : Public
+- **Usage** : Accueil et intégration des bénévoles, organisation des événements de convivialité (apéros, pots)
+- **Skills qui l'utilisent** : `fiche-pole`
+
 ### #pôle-boutique
 - **ID** : `C0APY566U4R`
 - **Type** : Public
