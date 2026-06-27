@@ -8,29 +8,38 @@ description: >
 
 ## Contexte à lire avant de commencer
 
-Lis ces deux fichiers pour résoudre les noms en IDs :
+Lis ces trois fichiers pour résoudre les noms en IDs :
 - `reference/slack-channels.md` — canaux Slack et leurs IDs
 - `reference/notion-structure.md` — bases Notion et leurs IDs
+- `reference/drive-structure.md` — dossiers Drive et leurs IDs
 
-## Étape 1 — Fetch les tâches Notion
+## Étape 1 — Fetch (en parallèle)
 
-Appelle `notion-query-database-view` sur la base "Tâches MZD".
-Filtre : échéance dans les 7 prochains jours OU statut "En cours".
-Continue quand chaque tâche (statut, assigné, date, dernière modification)
-est dans le contexte.
+Lance simultanément :
 
-## Étape 2 — Fetch les messages Slack
+a) `notion-query-database-view` sur la base "Tâches MZD"
+   → ID dans reference/notion-structure.md
+   Filtre : échéance dans les 7 prochains jours OU statut "En cours"
+   Si 0 résultat ou erreur → noter "Notion : aucune tâche trouvée ou indisponible", continuer
 
-Appelle `slack_read_channel` sur #échanges-ca-équipe.
-→ ID dans reference/slack-channels.md
-Pour les 3 derniers jours.
-Identifie : décisions prises, missions sans responsable, blocages exprimés.
-Continue quand les fils pertinents sont dans le contexte.
+b) `slack_read_channel` sur #échanges-ca-équipe
+   → ID dans reference/slack-channels.md
+   Pour les 3 derniers jours
+   Si 0 message → noter "Slack : canal silencieux depuis 3 jours", continuer
+   Si erreur → noter "Slack : source indisponible", continuer
 
-## Étape 3 — Analyser et classer
+c) Dernier CR CA Drive :
+   - `search_files` dans le dossier CA de l'année en cours
+     → ID du dossier dans reference/drive-structure.md
+   - Trier par modifiedTime desc, prendre le premier résultat avec "CA" dans le titre
+   - `read_file_content` sur ce fichier
+   Si 0 résultat → noter "Drive : aucun CR CA trouvé dans le dossier", continuer sans c)
 
-Pour chaque tâche et chaque décision Slack, classe-la dans une des trois
-catégories (uniquement depuis le contexte fetchté — ne pas inventer) :
+Continue quand toutes les tentatives sont terminées, qu'elles aient réussi ou non.
+
+## Étape 2 — Analyser et classer
+
+Pour chaque tâche et chaque décision Slack disponibles, classe dans :
 
 - 🔴 **BLOQUÉE** : tâche "En cours" sans activité depuis plus de 5 jours,
   ou mission identifiée sans responsable assigné
@@ -38,21 +47,21 @@ catégories (uniquement depuis le contexte fetchté — ne pas inventer) :
   mais pas de mise à jour récente
 - 🟢 **EN ORDRE** : avancement visible, responsable clair
 
-Continue quand chaque item du contexte est classé.
+Si une source est manquante, ne pas classer d'items pour cette source.
+Continue quand chaque item disponible est classé.
 
-## Étape 4 — Vérifier l'idempotence avant d'agir
+## Étape 3 — Vérifier l'idempotence avant d'agir
 
 Avant toute action sur un item 🔴, appelle `notion-search` avec le titre
 exact "🔴 Alerte — [nom de l'item]".
 
 - Si un ticket existe créé il y a moins de 3 jours : ne pas recréer ni
-  renvoyer de message Slack. Marquer l'item comme "déjà traité" pour le
-  rapport.
-- Si aucun ticket récent n'existe : passer à l'étape 5.
+  renvoyer de message Slack. Marquer l'item comme "déjà traité".
+- Si aucun ticket récent n'existe : passer à l'étape 4.
 
 Continue quand chaque item 🔴 a été vérifié.
 
-## Étape 5 — Agir sur les blocages 🔴
+## Étape 4 — Agir sur les blocages 🔴
 
 Pour chaque item 🔴 non déjà traité :
 
@@ -69,15 +78,20 @@ b) Appelle `slack_send_message` sur #échanges-ca-équipe
 Critère : chaque item 🔴 non déjà traité a un ticket Notion ET
 un message Slack confirmés avant de passer à l'étape suivante.
 
-## Étape 6 — Produire le brief final
+## Étape 5 — Produire le brief final
 
-Rédige le brief structuré (uniquement depuis le contexte fetchté) :
+Commence par une section "Sources" :
+✅/⚠️ Notion — [N tâches lues] ou [aucune tâche] ou [indisponible]
+✅/⚠️ Slack — [N messages / 3 jours] ou [silencieux depuis 3 jours] ou [indisponible]
+✅/⚠️ Drive CR CA — [date du CR lu] ou [aucun CR trouvé]
 
+Ensuite les sections habituelles :
 - **Priorités** : items 🟡 et 🟢 les plus importants (3 maximum),
   avec responsable et échéance
-- **Blocages traités** : liste des actions déclenchées à l'étape 5,
+- **Blocages traités** : actions déclenchées à l'étape 4,
   ou mention "déjà traité" pour les items idempotents
-- **À noter** : informations pertinentes des échanges Slack
+- **À noter** : échanges Slack pertinents
+- **Contexte CA** : date + 2 décisions clés du dernier CR CA Drive
+  (omettre cette section si Drive est manquant — avec mention explicite)
 
-Le brief est complet quand chaque item classé est mentionné et quand
-toutes les actions de l'étape 5 sont confirmées ou marquées "déjà traité".
+Le brief est complet quand chaque item disponible est mentionné.

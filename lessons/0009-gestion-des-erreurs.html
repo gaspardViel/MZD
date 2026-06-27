@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 9 — Gestion des erreurs dans les skills</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 9 · Claude Code × MZD</p>
+  <h1>Gestion des erreurs dans les skills</h1>
+  <p class="lesson-subtitle">
+    Que faire quand une source ne répond pas ou renvoie un résultat vide —
+    et comment écrire des skills qui restent utiles même en conditions dégradées.
+  </p>
+
+  <!-- ─── RAPPEL ──────────────────────────────────────────────────────────── -->
+  <h2>Où on en est</h2>
+
+  <p>
+    Le fetch parallèle de <code>brief-hebdo-actif</code> lance trois lectures simultanément :
+    Notion, Slack, Drive. Jusqu'ici, on a supposé que les trois répondent correctement.
+  </p>
+
+  <p>
+    En pratique, ce n'est pas toujours le cas. Notion peut renvoyer zéro tâches
+    (base vide ou filtre trop strict). Drive peut ne trouver aucun CR CA dans le dossier.
+    Slack peut retourner un canal silencieux depuis 5 jours.
+  </p>
+
+  <p>
+    Ce ne sont pas des bugs — ce sont des états valides. La question est :
+    que fait le skill dans ces cas ?
+  </p>
+
+  <!-- ─── 1. TROIS TYPES D'ERREURS ─────────────────────────────────────── -->
+  <h2>1. Les trois situations à gérer</h2>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Situation</th><th>Exemple concret</th><th>Dangereux ?</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Résultat vide</strong></td>
+        <td>Notion renvoie 0 tâches, Drive trouve 0 fichiers dans le dossier</td>
+        <td>⚠️ Si le skill continue sans le signaler</td>
+      </tr>
+      <tr>
+        <td><strong>Erreur technique</strong></td>
+        <td>L'outil échoue (timeout, ID invalide, permission refusée)</td>
+        <td>⚠️ Si le skill s'arrête sans explication</td>
+      </tr>
+      <tr>
+        <td><strong>Données partielles</strong></td>
+        <td>Slack renvoie les messages mais le fil principal est vide</td>
+        <td>⚠️ Si le skill traite des données incomplètes comme complètes</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Dans les trois cas, le vrai danger n'est pas l'erreur elle-même —
+    c'est ce que le skill fait ensuite. Un skill mal écrit va soit
+    s'arrêter silencieusement, soit pire, <strong>inventer du contexte
+    pour combler le vide</strong>.
+  </p>
+
+  <div class="callout warn">
+    <strong>L'erreur la plus fréquente</strong><br />
+    Claude reçoit un résultat vide depuis Notion. Il n'y a pas d'instruction
+    dans le SKILL.md pour ce cas. Claude raisonne quand même — et commence
+    à "se souvenir" de tâches qu'il a vues lors de sessions précédentes,
+    ou à en inventer de plausibles. C'est une hallucination silencieuse :
+    le brief a l'air normal, mais il est basé sur rien.
+  </div>
+
+  <!-- ─── 2. LA RÈGLE FONDAMENTALE ─────────────────────────────────────── -->
+  <h2>2. La règle : signaler, ne jamais inventer</h2>
+
+  <p>
+    Un skill robuste suit une règle simple face à une source défaillante :
+  </p>
+
+  <ol>
+    <li><strong>Signaler</strong> — noter explicitement dans le brief que la source n'a pas répondu ou est vide</li>
+    <li><strong>Continuer avec ce qui est disponible</strong> — ne pas bloquer sur une seule source</li>
+    <li><strong>Ne jamais inventer</strong> — aucune donnée fabriquée, même "plausible"</li>
+  </ol>
+
+  <p>
+    Un brief avec une section "⚠️ Notion indisponible ce matin — données manquantes"
+    est infiniment plus utile qu'un brief qui a l'air complet mais qui est basé
+    sur des données inventées.
+  </p>
+
+  <!-- ─── 3. LES PATTERNS D'ÉCRITURE ───────────────────────────────────── -->
+  <h2>3. Comment l'écrire dans un SKILL.md</h2>
+
+  <p>
+    Il existe deux patterns selon le niveau de robustesse voulu.
+  </p>
+
+  <h3>Pattern minimal — la note de carence</h3>
+
+  <p>
+    Pour chaque source du fetch, ajouter une instruction de repli :
+  </p>
+
+  <pre><code>## Étape 1 — Fetch (en parallèle)
+
+Lance simultanément :
+
+a) notion-query-database-view sur la base "Tâches MZD"
+   Si résultat vide ou erreur :
+   → noter "Notion : aucune tâche trouvée ou source indisponible"
+   → continuer avec les autres sources
+
+b) slack_read_channel sur #échanges-ca-équipe
+   Si résultat vide ou erreur :
+   → noter "Slack : canal silencieux ou source indisponible"
+   → continuer avec les autres sources
+
+c) search_files Drive dans le dossier CA 2026
+   Si aucun résultat :
+   → noter "Drive : aucun CR CA trouvé dans le dossier 2026"
+   → continuer sans contexte CA
+
+Continue quand toutes les tentatives sont terminées,
+qu'elles aient réussi ou non.</code></pre>
+
+  <p>
+    La barrière change : on ne dit plus "Continue quand les trois
+    <em>réponses</em> sont disponibles" — mais "Continue quand toutes
+    les <em>tentatives</em> sont terminées". Le skill avance dans tous les cas.
+  </p>
+
+  <h3>Pattern complet — la section "Sources"</h3>
+
+  <p>
+    Pour un brief de qualité production, ajouter une section dédiée
+    dans l'output final :
+  </p>
+
+  <pre><code>## Étape 5 — Produire le brief final
+
+Commence le brief par une section "Sources" :
+
+✅ Notion — [N] tâches lues
+✅ Slack — [N] messages lus sur les 3 derniers jours
+⚠️ Drive CR CA — aucun fichier trouvé dans le dossier 2026
+   → section "Contexte CA" omise
+
+Ensuite les sections habituelles.
+Si une source est manquante, sa section correspondante est
+omise du brief avec une mention explicite.</code></pre>
+
+  <p>
+    Cette section "Sources" en tête de brief sert de tableau de bord rapide :
+    au premier coup d'œil, tu sais sur quoi le brief est basé.
+  </p>
+
+  <!-- ─── 4. RÉSULTAT VIDE VS ERREUR ────────────────────────────────────── -->
+  <h2>4. Résultat vide ≠ erreur technique</h2>
+
+  <p>
+    Il y a une distinction importante à faire dans le SKILL.md :
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Cas</th><th>Signification</th><th>Que noter dans le brief</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Notion renvoie 0 tâches</td>
+        <td>Soit tout est en ordre, soit le filtre est trop strict</td>
+        <td>"Notion : 0 tâche correspondant aux critères" (état valide possible)</td>
+      </tr>
+      <tr>
+        <td>Notion échoue (erreur)</td>
+        <td>Problème de connexion ou d'autorisation</td>
+        <td>"Notion : source indisponible — données non lues"</td>
+      </tr>
+      <tr>
+        <td>Drive : 0 fichier dans le dossier 2026</td>
+        <td>Soit pas encore de CR CA cette année, soit mauvais ID</td>
+        <td>"Drive : aucun CR CA trouvé — vérifier l'ID du dossier dans drive-structure.md"</td>
+      </tr>
+      <tr>
+        <td>Slack : 0 message sur 3 jours</td>
+        <td>Canal silencieux — information valide en soi</td>
+        <td>"Slack : canal #échanges-ca-équipe silencieux depuis 3 jours"</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Un canal Slack silencieux depuis 3 jours, ce n'est pas une erreur —
+    c'est une information. Le brief doit le dire explicitement plutôt que
+    de l'ignorer ou de combler le vide.
+  </p>
+
+  <!-- ─── 5. MISE À JOUR BRIEF-HEBDO-ACTIF ─────────────────────────────── -->
+  <h2>5. Mettre à jour <code>brief-hebdo-actif</code></h2>
+
+  <p>
+    On va ajouter les instructions de repli à l'étape 1 et la section
+    "Sources" à l'étape 5. Le reste du skill ne change pas.
+  </p>
+
+  <pre><code>## Étape 1 — Fetch (en parallèle)
+
+Lance simultanément :
+
+a) notion-query-database-view sur la base "Tâches MZD"
+   → ID dans reference/notion-structure.md
+   Filtre : échéance ≤ 7j OU statut "En cours"
+   Si 0 résultat ou erreur → noter, continuer
+
+b) slack_read_channel sur #échanges-ca-équipe
+   → ID dans reference/slack-channels.md
+   Pour les 3 derniers jours
+   Si 0 message ou erreur → noter, continuer
+
+c) Dernier CR CA Drive :
+   search_files dans le dossier CA de l'année en cours
+   → ID du dossier dans reference/drive-structure.md
+   Si 0 résultat → noter "aucun CR CA trouvé", continuer sans c)
+
+Continue quand toutes les tentatives sont terminées.
+
+[...]
+
+## Étape 5 — Produire le brief final
+
+Commence par une section "Sources" :
+✅/⚠️ Notion — [N tâches] ou [indisponible]
+✅/⚠️ Slack — [N messages / 3 jours] ou [silencieux] ou [indisponible]
+✅/⚠️ Drive CR CA — [date du CR lu] ou [aucun trouvé]
+
+Puis les sections habituelles.
+Omettre une section si sa source est manquante — avec mention explicite.</code></pre>
+
+  <!-- ─── 6. UNE RÈGLE PLUS PROFONDE ───────────────────────────────────── -->
+  <h2>6. La règle qui sous-tend tout ça</h2>
+
+  <p>
+    La gestion des erreurs dans les skills, c'est une application directe
+    du principe de la leçon 1 : Claude ne sait rien de la MZD par lui-même.
+  </p>
+
+  <p>
+    Quand une source est vide, Claude n'a pas de données MZD "de secours"
+    dans sa mémoire. Il n'a que ce qui a été fetchté dans cette session.
+    Un skill qui ne gère pas les erreurs laisse Claude dans le vide —
+    et le vide, pour un LLM, produit des hallucinations.
+  </p>
+
+  <div class="callout">
+    <strong>Le fil rouge depuis la leçon 1</strong><br />
+    Leçon 1 : inject context before reasoning.<br />
+    Leçon 9 : if the context fetch fails, say so — don't reason on nothing.<br /><br />
+    C'est la même règle, appliquée aux cas limites.
+  </div>
+
+  <!-- ─── QUIZ ─────────────────────────────────────────────────────────── -->
+  <h2>Quiz</h2>
+
+  <!-- Q1 -->
+  <div class="quiz-block" id="q1">
+    <p class="quiz-question">
+      Notion renvoie 0 tâche. Claude n'a aucune instruction dans le SKILL.md
+      pour ce cas. Que risque-t-il de faire ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q1', false)">
+        S'arrêter et afficher un message d'erreur
+      </button>
+      <button class="quiz-option" onclick="answer('q1', true)">
+        Continuer à raisonner et potentiellement inventer des tâches
+        plausibles basées sur des sessions précédentes
+      </button>
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Relancer automatiquement le fetch Notion
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q1-feedback"></p>
+  </div>
+
+  <!-- Q2 -->
+  <div class="quiz-block" id="q2">
+    <p class="quiz-question">
+      Le canal Slack #échanges-ca-équipe est silencieux depuis 4 jours.
+      Quelle est la bonne façon de traiter ça dans le brief ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Omettre la section Slack du brief sans mention
+      </button>
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Retenter le fetch Slack sur un autre canal pour compenser
+      </button>
+      <button class="quiz-option" onclick="answer('q2', true)">
+        Noter "Slack : #échanges-ca-équipe silencieux depuis 4 jours"
+        dans la section Sources — c'est une information valide, pas une erreur
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q2-feedback"></p>
+  </div>
+
+  <!-- Q3 -->
+  <div class="quiz-block" id="q3">
+    <p class="quiz-question">
+      Pourquoi la barrière du fetch parallèle change de "Continue quand les
+      trois réponses sont disponibles" à "Continue quand toutes les tentatives
+      sont terminées" ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q3', true)">
+        Parce qu'une source peut échouer sans bloquer les autres —
+        le skill doit avancer même si une tentative n'a pas abouti
+      </button>
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Parce que "tentatives" est plus précis que "réponses" sur le plan technique
+      </button>
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Pour que Claude relance automatiquement les sources en échec
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q3-feedback"></p>
+  </div>
+
+  <!-- ─── CE QU'ON A CONSTRUIT ────────────────────────────────────────── -->
+  <h2>Ce qu'on a appris dans cette leçon</h2>
+
+  <ul>
+    <li>
+      <strong>Trois situations à gérer</strong> — résultat vide, erreur technique,
+      données partielles. Aucune n'est un bug en soi ; c'est ce que le skill
+      fait ensuite qui compte.
+    </li>
+    <li>
+      <strong>Signaler, ne jamais inventer</strong> — un brief incomplet mais
+      honnête est meilleur qu'un brief complet et halluciné
+    </li>
+    <li>
+      <strong>Résultat vide ≠ erreur</strong> — un canal silencieux est une
+      information ; 0 tâche peut être un état valide
+    </li>
+    <li>
+      <strong>La barrière "tentatives terminées"</strong> — le skill avance
+      même quand une source échoue, sans bloquer sur elle
+    </li>
+    <li>
+      <strong>La section "Sources"</strong> — tableau de bord en tête de brief :
+      ✅/⚠️ pour chaque source, avant toute analyse
+    </li>
+    <li>
+      <strong>Le fil rouge depuis la leçon 1</strong> — si le contexte n'a
+      pas été fetchté, ne pas raisonner dessus. Les erreurs de fetch sont
+      le même principe appliqué aux cas limites.
+    </li>
+  </ul>
+
+  <!-- ─── NAVIGATION ───────────────────────────────────────────────────── -->
+  <nav class="lesson-nav">
+    <a href="0008-fetch-parallele-multi-sources.html">← Leçon 8 : Fetch parallèle</a>
+    <span class="lesson-nav-current">Leçon 9</span>
+    <span class="lesson-nav-next">Leçon 10 (à venir)</span>
+  </nav>
+
+</article>
+
+<script>
+  const feedback = {
+    q1: {
+      ok: 'Exact. Sans instruction de repli, Claude n\'a pas de garde-fou. Face au vide, un LLM tend à combler — il peut "se souvenir" de tâches vues en session précédente ou en générer de plausibles. C\'est une hallucination silencieuse : le brief a l\'air normal mais repose sur rien.',
+      ko: 'Non. Claude ne s\'arrête pas automatiquement sur un résultat vide, ni ne relance le fetch. Sans instruction explicite, il continue de raisonner — et le vide produit des hallucinations. C\'est pour ça que chaque source doit avoir une instruction de repli explicite dans le SKILL.md.'
+    },
+    q2: {
+      ok: 'Exact. Un canal silencieux depuis 4 jours, c\'est une information en soi — peut-être significative (l\'équipe ne communique pas, ou tout va bien). La bonne pratique est de le noter dans la section Sources : ✅ Slack — #échanges-ca-équipe silencieux depuis 4 jours. Pas d\'omission, pas de compensation.',
+      ko: 'Non. Omettre la section sans mention prive le lecteur d\'une information potentiellement significative. Et compenser sur un autre canal va à l\'encontre du skill — ce n\'est pas ce qui a été demandé. Un canal silencieux se note, il ne se contourne pas.'
+    },
+    q3: {
+      ok: 'Exact. "Continue quand les réponses sont disponibles" suppose que toutes les sources répondent positivement. "Continue quand les tentatives sont terminées" inclut les échecs : le skill avance dès que chaque source a été tentée, qu\'elle ait réussi ou non. C\'est la formulation qui rend le skill robuste aux erreurs.',
+      ko: 'Non. Le changement de formulation n\'est pas cosmétique ou technique — c\'est une décision de comportement. "Tentatives terminées" signifie que le skill avance même quand une source échoue, sans attendre indéfiniment une réponse qui ne viendra pas.'
+    }
+  };
+
+  function answer(questionId, isCorrect) {
+    const block = document.getElementById(questionId);
+    block.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = true);
+    const fb = document.getElementById(questionId + '-feedback');
+    fb.classList.add('visible');
+    fb.textContent = isCorrect ? feedback[questionId].ok : feedback[questionId].ko;
+    fb.classList.toggle('correct', isCorrect);
+    fb.classList.toggle('wrong', !isCorrect);
+  }
+</script>
+</body>
+</html>

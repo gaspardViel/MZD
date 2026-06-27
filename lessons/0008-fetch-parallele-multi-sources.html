@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 8 — Fetch parallèle et multi-sources</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 8 · Claude Code × MZD</p>
+  <h1>Fetch parallèle et multi-sources</h1>
+  <p class="lesson-subtitle">
+    Lire Notion, Slack et Drive simultanément plutôt que l'un après l'autre —
+    et enrichir <code>brief-hebdo-actif</code> avec la troisième source.
+  </p>
+
+  <!-- ─── RAPPEL ──────────────────────────────────────────────────────────── -->
+  <h2>Où on en est</h2>
+
+  <p>
+    Tu as trois sources de contexte MZD : Notion (tâches), Slack (échanges),
+    Drive (documents). Les skills actuels lisent ces sources une par une —
+    d'abord Notion, puis Slack, puis (bientôt) Drive.
+  </p>
+
+  <p>
+    Ce chaînage séquentiel a un coût invisible : si chaque lecture prend
+    3 secondes, trois lectures prennent 9 secondes. En parallèle,
+    les mêmes trois lectures prennent 3 secondes.
+  </p>
+
+  <p>
+    Mais le parallélisme a une règle stricte — et la comprendre, c'est
+    comprendre comment écrire des skills robustes.
+  </p>
+
+  <!-- ─── 1. SÉQUENTIEL VS PARALLÈLE ───────────────────────────────────── -->
+  <h2>1. Le problème du fetch séquentiel</h2>
+
+  <p>
+    Voici comment <code>brief-hebdo-actif</code> fonctionne aujourd'hui :
+  </p>
+
+  <pre><code>Étape 1 — Fetch Notion  (attend la réponse)
+     ↓
+Étape 2 — Fetch Slack   (attend la réponse)
+     ↓
+Étape 3 — Analyser</code></pre>
+
+  <p>
+    La lecture Slack ne peut commencer que quand la lecture Notion
+    est terminée. Ce n'est pas une contrainte technique — c'est juste
+    la façon dont le skill est écrit. Notion et Slack sont <em>indépendants</em> :
+    l'un n'a pas besoin du résultat de l'autre pour démarrer.
+  </p>
+
+  <p>
+    Avec Drive en troisième source, le problème s'amplifie :
+  </p>
+
+  <pre><code>Étape 1 — Fetch Notion  (3s)
+     ↓
+Étape 2 — Fetch Slack   (3s)
+     ↓
+Étape 3 — Fetch Drive   (3s)
+     ↓
+Étape 4 — Analyser
+
+Total : ~9 secondes d'attente</code></pre>
+
+  <!-- ─── 2. LA RÈGLE DU PARALLÉLISME ──────────────────────────────────── -->
+  <h2>2. La règle : parallèle pour les lectures, séquentiel pour les actions</h2>
+
+  <p>
+    Le parallélisme n'est pas toujours possible. La règle est simple :
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Type d'opération</th><th>Parallélisable ?</th><th>Pourquoi</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Fetch Notion, Slack, Drive</td>
+        <td>✅ Oui</td>
+        <td>Lecture seule — aucun effet de bord, aucune dépendance entre eux</td>
+      </tr>
+      <tr>
+        <td>Analyser (étape 3)</td>
+        <td>❌ Non</td>
+        <td>Doit attendre que <em>toutes</em> les sources soient lues</td>
+      </tr>
+      <tr>
+        <td>Créer un ticket Notion</td>
+        <td>❌ Non</td>
+        <td>Doit attendre l'analyse pour savoir si un ticket est nécessaire</td>
+      </tr>
+      <tr>
+        <td>Envoyer un message Slack</td>
+        <td>❌ Non</td>
+        <td>Dépend du ticket Notion créé à l'étape précédente (lien à inclure)</td>
+      </tr>
+      <tr>
+        <td>Vérifier l'idempotence (notion-search)</td>
+        <td>✅ Oui (entre items)</td>
+        <td>Chaque vérification est indépendante des autres</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>La règle à retenir</strong><br />
+    Deux opérations peuvent être parallèles si et seulement si
+    aucune n'a besoin du résultat de l'autre pour s'exécuter.
+    Les fetches de sources indépendantes : toujours parallèles.
+    Les actions qui dépendent d'une analyse : toujours séquentielles.
+  </div>
+
+  <!-- ─── 3. ÉCRIRE LE PARALLÉLISME DANS UN SKILL ───────────────────────── -->
+  <h2>3. Écrire le parallélisme dans un SKILL.md</h2>
+
+  <p>
+    Claude sait exécuter des opérations en parallèle — il suffit de
+    l'écrire explicitement dans le SKILL.md. Deux formulations fonctionnent :
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">Séquentiel (lent)</div>
+      <div class="compare-body">
+        <pre style="margin:0; font-size:0.82rem; background:none; border:none; padding:0;"><code>## Étape 1 — Fetch Notion
+Appelle notion-query-database-view.
+Continue quand tu as les tâches.
+
+## Étape 2 — Fetch Slack
+Appelle slack_read_channel.
+Continue quand tu as les messages.</code></pre>
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Parallèle (rapide)</div>
+      <div class="compare-body">
+        <pre style="margin:0; font-size:0.82rem; background:none; border:none; padding:0;"><code>## Étape 1 — Fetch (en parallèle)
+
+Lance simultanément :
+- notion-query-database-view
+  sur la base Tâches MZD
+- slack_read_channel
+  sur #échanges-ca-équipe
+- search_files (Drive)
+  dossier CA 2026
+
+Continue quand les trois
+réponses sont disponibles.</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <p>
+    Le mot <strong>"simultanément"</strong> ou <strong>"en parallèle"</strong>
+    suffit à signaler à Claude qu'il peut lancer toutes les opérations
+    listées sans attendre chacune. La barrière <em>"Continue quand les trois
+    réponses sont disponibles"</em> garantit que l'analyse n'commence
+    qu'une fois tout le contexte en main.
+  </p>
+
+  <!-- ─── 4. MISE À JOUR BRIEF-HEBDO-ACTIF ─────────────────────────────── -->
+  <h2>4. Mettre à jour <code>brief-hebdo-actif</code></h2>
+
+  <p>
+    On va apporter deux changements au skill existant :
+  </p>
+
+  <ol>
+    <li>Fusionner les étapes 1 et 2 en une seule étape de fetch parallèle</li>
+    <li>Ajouter la lecture Drive (créneaux bénévoles) dans ce même fetch</li>
+  </ol>
+
+  <p>
+    La référence <code>drive-structure.md</code> est ajoutée dans le contexte
+    initial, et le brief final gagne une nouvelle section "Bénévoles disponibles".
+  </p>
+
+  <p>
+    Voici le diff des changements :
+  </p>
+
+  <pre><code>## Contexte à lire avant de commencer
+
+Lis ces fichiers pour résoudre les noms en IDs :
+- reference/slack-channels.md
+- reference/notion-structure.md
++ reference/drive-structure.md   ← nouveau
+
+## Étape 1 — Fetch (en parallèle)                 ← était deux étapes séparées
+
+Lance simultanément :
+a) notion-query-database-view sur la base "Tâches MZD"
+   Filtre : échéance ≤ 7j OU statut "En cours"
+b) slack_read_channel sur #échanges-ca-équipe, 3 derniers jours
+c) search_files Drive dans le dossier CA 2026              ← nouveau
+   → ID dans reference/drive-structure.md
+   → trier par modifiedTime desc, prendre le premier résultat
+   → read_file_content sur ce fichier
+
+Continue quand les trois réponses sont disponibles.
+
+## Étape 2 — Analyser et classer                  ← numérotation décalée
+
+[... reste identique ...]
+
+## Étape 6 — Produire le brief final
+
++ Ajouter une section "Contexte CA" avec la date et les décisions
++ clés du dernier CR CA Drive (2 lignes maximum)</code></pre>
+
+  <!-- ─── 5. LE SKILL MIS À JOUR ───────────────────────────────────────── -->
+  <h2>5. Le SKILL.md complet après mise à jour</h2>
+
+  <p>
+    Voici à quoi ressemble <code>brief-hebdo-actif</code> après les changements.
+    Les étapes d'action (3 à 6) restent identiques — seul le fetch change.
+  </p>
+
+  <pre><code>---
+name: brief-hebdo-actif
+description: >
+  Produit le brief hebdomadaire MZD ET déclenche des actions
+  (tickets Notion, alertes Slack) sur les blocages détectés.
+  Utilise chaque vendredi ou avant toute réunion de coordination.
+---
+
+## Contexte à lire avant de commencer
+
+Lis ces trois fichiers pour résoudre les noms en IDs :
+- reference/slack-channels.md
+- reference/notion-structure.md
+- reference/drive-structure.md
+
+## Étape 1 — Fetch (en parallèle)
+
+Lance simultanément :
+
+a) notion-query-database-view sur la base "Tâches MZD"
+   → ID dans reference/notion-structure.md
+   Filtre : échéance dans les 7 prochains jours OU statut "En cours"
+
+b) slack_read_channel sur #échanges-ca-équipe
+   → ID dans reference/slack-channels.md
+   Pour les 3 derniers jours
+
+c) Dernier CR CA Drive :
+   - search_files({ query: "parentId = 'ID_DOSSIER_2026'" })
+     → ID_DOSSIER_2026 dans reference/drive-structure.md
+   - trier par modifiedTime desc, prendre le premier résultat
+   - read_file_content sur ce fichier
+
+Continue quand les trois réponses sont disponibles dans le contexte.
+
+## Étape 2 — Analyser et classer
+
+Pour chaque tâche Notion et chaque décision Slack, classe dans :
+- 🔴 BLOQUÉE : tâche "En cours" sans activité > 5 jours,
+  ou mission sans responsable
+- 🟡 À SURVEILLER : proche de l'échéance, pas de mise à jour récente
+- 🟢 EN ORDRE : avancement visible, responsable clair
+
+Continue quand chaque item est classé.
+
+## Étape 3 — Vérifier l'idempotence avant d'agir
+
+Pour chaque item 🔴, appelle notion-search "🔴 Alerte — [nom]".
+Si ticket créé il y a moins de 3 jours → ne pas recréer, marquer "déjà traité".
+
+## Étape 4 — Agir sur les blocages 🔴
+
+Pour chaque item 🔴 non déjà traité :
+a) notion-create-pages dans "Tâches MZD" — titre "🔴 Alerte — [nom]"
+b) slack_send_message sur #échanges-ca-équipe — 3 lignes max
+
+## Étape 5 — Produire le brief final
+
+Sections :
+- Priorités (🟡 et 🟢, 3 max, avec responsable et échéance)
+- Blocages traités (actions étape 4 ou "déjà traité")
+- À noter (échanges Slack pertinents)
+- Contexte CA (date + 2 décisions clés du dernier CR CA Drive)</code></pre>
+
+  <!-- ─── 6. POURQUOI C'EST IMPORTANT ──────────────────────────────────── -->
+  <h2>6. Pourquoi ça change quelque chose en pratique</h2>
+
+  <p>
+    Ce n'est pas juste une question de vitesse. Le fetch parallèle
+    change la façon dont on pense l'architecture d'un skill.
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Avant</th><th>Après</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Ajouter une source = ajouter une étape séquentielle</td>
+        <td>Ajouter une source = ajouter une ligne dans l'étape de fetch</td>
+      </tr>
+      <tr>
+        <td>Le brief attendait 6–9 secondes avant d'analyser</td>
+        <td>Le brief attend 3 secondes (le temps de la source la plus lente)</td>
+      </tr>
+      <tr>
+        <td>3 sources → 3 "Continue quand…" séparés</td>
+        <td>3 sources → 1 seule barrière "Continue quand les trois réponses…"</td>
+      </tr>
+      <tr>
+        <td>Difficile à étendre (4ème source = 4ème étape)</td>
+        <td>Facile à étendre (4ème source = 4ème ligne dans le fetch)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <strong>Ce que le parallélisme ne résout pas</strong><br />
+    Le parallélisme accélère le fetch, pas le raisonnement. Si les trois
+    sources renvoient des données volumineuses, Claude doit toujours
+    traiter tout ce contexte avant d'analyser. La bonne pratique reste
+    de filtrer en amont : <code>pageSize</code> limité, dates récentes,
+    statuts pertinents — pour ne fetcher que ce dont le skill a besoin.
+  </div>
+
+  <!-- ─── QUIZ ─────────────────────────────────────────────────────────── -->
+  <h2>Quiz</h2>
+
+  <!-- Q1 -->
+  <div class="quiz-block" id="q1">
+    <p class="quiz-question">
+      Dans <code>brief-hebdo-actif</code>, pourquoi la création du ticket Notion
+      ne peut-elle <em>pas</em> être parallélisée avec la lecture des tâches Notion ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Parce que Notion ne supporte pas les appels simultanés
+      </button>
+      <button class="quiz-option" onclick="answer('q1', true)">
+        Parce que la création du ticket dépend de l'analyse — qui dépend
+        elle-même du fetch. La création est une action, pas une lecture.
+      </button>
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Parce que les tickets Notion sont lents à créer
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q1-feedback"></p>
+  </div>
+
+  <!-- Q2 -->
+  <div class="quiz-block" id="q2">
+    <p class="quiz-question">
+      Comment signaler à Claude qu'il doit lancer plusieurs lectures en même temps
+      dans un SKILL.md ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q2', false)">
+        En les écrivant dans des étapes numérotées séparées
+      </button>
+      <button class="quiz-option" onclick="answer('q2', true)">
+        En les listant sous une même étape avec le mot "simultanément"
+        ou "en parallèle", suivi d'une barrière "Continue quand toutes
+        les réponses sont disponibles"
+      </button>
+      <button class="quiz-option" onclick="answer('q2', false)">
+        En ajoutant un paramètre <code>parallel: true</code> dans le SKILL.md
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q2-feedback"></p>
+  </div>
+
+  <!-- Q3 -->
+  <div class="quiz-block" id="q3">
+    <p class="quiz-question">
+      Tu ajoutes une quatrième source au brief : la lecture du canal
+      #info-animation sur Slack. Que changes-tu dans le SKILL.md ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Tu ajoutes une étape 1b entre les étapes 1 et 2 existantes
+      </button>
+      <button class="quiz-option" onclick="answer('q3', true)">
+        Tu ajoutes une ligne "d) slack_read_channel #info-animation"
+        dans l'étape de fetch parallèle — sans toucher au reste
+      </button>
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Tu crées un second skill dédié à #info-animation et tu l'orchestres
+        depuis brief-hebdo-actif
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q3-feedback"></p>
+  </div>
+
+  <!-- ─── CE QU'ON A CONSTRUIT ────────────────────────────────────────── -->
+  <h2>Ce qu'on a appris dans cette leçon</h2>
+
+  <ul>
+    <li>
+      <strong>Fetch séquentiel vs parallèle</strong> — le temps total est la somme
+      des fetches en séquentiel, le maximum en parallèle
+    </li>
+    <li>
+      <strong>La règle de parallélisme</strong> — deux opérations sont parallélisables
+      si aucune n'a besoin du résultat de l'autre
+    </li>
+    <li>
+      <strong>Lectures = parallèles, actions = séquentielles</strong> — les fetches
+      Notion/Slack/Drive sont indépendants ; créer un ticket ou envoyer un message
+      dépend toujours de ce qui précède
+    </li>
+    <li>
+      <strong>"Simultanément" dans le SKILL.md</strong> — le mot suffit à
+      déclencher l'exécution parallèle, suivi d'une barrière explicite
+    </li>
+    <li>
+      <strong><code>brief-hebdo-actif</code> enrichi</strong> — trois sources
+      (Notion + Slack + Drive CR CA) lues en une seule étape parallèle,
+      brief final avec section "Contexte CA"
+    </li>
+  </ul>
+
+  <!-- ─── NAVIGATION ───────────────────────────────────────────────────── -->
+  <nav class="lesson-nav">
+    <a href="0007-google-drive-et-recherche.html">← Leçon 7 : Google Drive</a>
+    <span class="lesson-nav-current">Leçon 8</span>
+    <a href="0009-gestion-des-erreurs.html">Leçon 9 : Gestion des erreurs →</a>
+  </nav>
+
+</article>
+
+<script>
+  const feedback = {
+    q1: {
+      ok: 'Exact. La création d\'un ticket 🔴 est une action qui ne peut démarrer qu\'après l\'analyse, laquelle ne peut démarrer qu\'après le fetch. C\'est une dépendance de données — pas une contrainte technique. Le parallélisme ne s\'applique qu\'aux opérations sans dépendance entre elles.',
+      ko: 'Non. La contrainte n\'est pas technique. Notion supporte les appels en parallèle. Le problème est que la création du ticket dépend de l\'analyse, qui dépend du fetch : c\'est une dépendance logique qui impose la séquence.'
+    },
+    q2: {
+      ok: 'Exact. Le mot "simultanément" ou "en parallèle" dans le SKILL.md est le signal. Ensuite, une barrière explicite "Continue quand toutes les réponses sont disponibles" garantit que l\'analyse n\'commence qu\'une fois tout le contexte en main.',
+      ko: 'Non. Il n\'y a pas de paramètre spécial à ajouter. La technique consiste à lister les opérations sous une même étape avec le mot "simultanément", suivi d\'une barrière. Les étapes numérotées séparées signalent au contraire une exécution séquentielle.'
+    },
+    q3: {
+      ok: 'Exact. C\'est l\'avantage du fetch parallèle structuré : ajouter une source = ajouter une ligne dans l\'étape de fetch, sans restructurer le reste du skill. Le changement est minimal et localisé.',
+      ko: 'Non. La force du pattern parallèle est précisément qu\'ajouter une source est une modification minimale : une ligne de plus dans l\'étape de fetch. Pas besoin de créer une nouvelle étape, ni un skill séparé.'
+    }
+  };
+
+  function answer(questionId, isCorrect) {
+    const block = document.getElementById(questionId);
+    block.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = true);
+    const fb = document.getElementById(questionId + '-feedback');
+    fb.classList.add('visible');
+    fb.textContent = isCorrect ? feedback[questionId].ok : feedback[questionId].ko;
+    fb.classList.toggle('correct', isCorrect);
+    fb.classList.toggle('wrong', !isCorrect);
+  }
+</script>
+</body>
+</html>

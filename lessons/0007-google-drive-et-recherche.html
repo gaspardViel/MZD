@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 7 — Google Drive et recherche</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 7 · Claude Code × MZD</p>
+  <h1>Google Drive et recherche</h1>
+  <p class="lesson-subtitle">
+    Lire les documents partagés de la MZD depuis les skills —
+    et savoir quand chercher dans Drive plutôt que dans Notion.
+  </p>
+
+  <!-- ─── RAPPEL ──────────────────────────────────────────────────────────── -->
+  <h2>Où on en est</h2>
+
+  <p>
+    Tu as un système complet : Notion pour les tâches structurées,
+    Slack pour les échanges d'équipe, des skills qui orchestrent tout ça,
+    et des crons pour déclencher automatiquement.
+  </p>
+
+  <p>
+    Il manque un troisième outil de lecture : <strong>Google Drive</strong>.
+    La MZD y stocke ses comptes-rendus CA, ses documents de gouvernance,
+    ses plannings bénévoles. Autant de contexte que les skills ne peuvent
+    pas lire — tant qu'on ne leur apprend pas comment chercher.
+  </p>
+
+  <!-- ─── 1. DRIVE VS NOTION ────────────────────────────────────────────── -->
+  <h2>1. Drive vs Notion — quand utiliser quoi</h2>
+
+  <p>
+    La confusion la plus fréquente : tout ce qui n'est pas dans Slack
+    est censé être dans Notion. Ce n'est pas le cas pour la MZD.
+    Deux outils coexistent, avec des rôles distincts.
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Besoin</th><th>Outil</th><th>Pourquoi</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Tâches, statuts, filtres</td>
+        <td>Notion</td>
+        <td>Base de données structurée, requêtable par statut / date</td>
+      </tr>
+      <tr>
+        <td>CR CA 2026 et après</td>
+        <td>Notion</td>
+        <td>Migration récente — les nouveaux CRs sont des pages Notion</td>
+      </tr>
+      <tr>
+        <td>CR CA 2025 et avant</td>
+        <td>Drive</td>
+        <td>Historique dans les dossiers CA, format Google Docs</td>
+      </tr>
+      <tr>
+        <td>Documents longs, présentations</td>
+        <td>Drive</td>
+        <td>Google Docs / Slides / Sheets — format natif</td>
+      </tr>
+      <tr>
+        <td>Planning bénévoles</td>
+        <td>Drive</td>
+        <td>Google Sheets partagé avec toute l'équipe</td>
+      </tr>
+      <tr>
+        <td>Gouvernance des pôles</td>
+        <td>Drive</td>
+        <td>Dossier "Gouvernance Partagée" piloté depuis maisonduzd@gmail.com</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>Règle pratique</strong><br />
+    Quand un skill a besoin de contexte et qu'il ne trouve rien dans Notion,
+    la prochaine question est : <em>"est-ce que c'est dans Drive ?"</em>
+    Avant cette leçon, la réponse était toujours "je ne sais pas".
+    Après cette leçon, Claude sait où chercher.
+  </div>
+
+  <!-- ─── 2. LES OUTILS DRIVE MCP ──────────────────────────────────────── -->
+  <h2>2. Les outils Drive MCP</h2>
+
+  <p>
+    Trois outils composent le trio de lecture Drive.
+    Ils fonctionnent de la même façon que les outils Notion :
+    tu les appelles, Claude lit, tu raisonnes sur ce qu'il trouve.
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Outil</th><th>Usage</th><th>Paramètre clé</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>search_files</code></td>
+        <td>Trouver des fichiers par titre, dossier parent, date, type</td>
+        <td><code>query</code> — syntaxe Drive query</td>
+      </tr>
+      <tr>
+        <td><code>get_file_metadata</code></td>
+        <td>Vérifier qu'un fichier existe et obtenir ses infos (titre, propriétaire, date)</td>
+        <td><code>fileId</code></td>
+      </tr>
+      <tr>
+        <td><code>read_file_content</code></td>
+        <td>Lire le contenu texte d'un Google Doc ou Sheet</td>
+        <td><code>fileId</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>La syntaxe de recherche Drive</h3>
+
+  <p>
+    <code>search_files</code> utilise une syntaxe de requête spécifique.
+    Ce ne sont pas des mots-clés libres — c'est un mini-langage de filtres.
+  </p>
+
+  <pre><code>// Chercher par titre
+search_files({ query: "title contains 'Compte Rendu CA'" })
+
+// Chercher dans un dossier spécifique
+search_files({ query: "parentId = '1flx8G4bDXDz-PpEu47RulpZwN_XUTdqq'" })
+
+// Chercher un type de fichier
+search_files({ query: "mimeType = 'application/vnd.google-apps.document'" })
+
+// Combiner : titre + dossier parent
+search_files({ query: "title contains 'CA' and parentId = '1BYIZfmSNz-FZwmdh2RfggnFOuf28tEpM'" })
+
+// Chercher les fichiers modifiés récemment
+search_files({ query: "modifiedTime > '2026-01-01T00:00:00Z'" })</code></pre>
+
+  <div class="callout warn">
+    <strong>Piège courant</strong><br />
+    <code>fullText contains 'mot'</code> cherche dans le contenu des fichiers —
+    c'est lent et peu fiable pour les Google Docs. Préfère toujours
+    <code>title contains</code> quand tu cherches par nom.
+    Utilise <code>read_file_content</code> après pour lire le contenu.
+  </div>
+
+  <!-- ─── 3. REFERENCE/DRIVE-STRUCTURE.MD ──────────────────────────────── -->
+  <h2>3. La reference doc Drive</h2>
+
+  <p>
+    On vient de créer <code>reference/drive-structure.md</code> avec la
+    carte réelle de la MZD — les IDs vérifiés des dossiers CA, du dossier
+    Gouvernance Partagée, du planning bénévoles.
+  </p>
+
+  <p>
+    C'est le même principe que <code>reference/notion-structure.md</code> :
+    centraliser les IDs et les patterns pour que les skills n'aient pas à
+    les deviner. Un ID Drive qui change (si le fichier est déplacé)
+    n'invalide qu'un endroit — la reference doc — pas tous les skills.
+  </p>
+
+  <h3>Ce que contient drive-structure.md</h3>
+
+  <ul>
+    <li>
+      <strong>Dossiers CA par année</strong> — IDs des dossiers 2024, 2025, 2026
+      et nomenclature des fichiers (<code>YYYY_MM_DD CA</code>)
+    </li>
+    <li>
+      <strong>Gouvernance Partagée</strong> — dossier MZD et documents clés
+      (Cadrage gouvernance, Tableaux Gouvernance)
+    </li>
+    <li>
+      <strong>Créneaux bénévoles</strong> — le Google Sheet partagé avec toute l'équipe
+    </li>
+    <li>
+      <strong>Tableau Drive / Notion</strong> — pour savoir où chercher quoi
+    </li>
+  </ul>
+
+  <!-- ─── 4. PATTERN SEARCH BEFORE READ ───────────────────────────────── -->
+  <h2>4. Le pattern "search before read"</h2>
+
+  <p>
+    Contrairement à Notion où chaque base a un ID stable qu'on cite directement,
+    les fichiers Drive peuvent être déplacés ou renommés. Le pattern robuste :
+    <strong>chercher d'abord, puis lire</strong>.
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">Fragile</div>
+      <div class="compare-body">
+        Hardcoder l'ID du fichier directement dans le SKILL.md.<br /><br />
+        Si le fichier est déplacé → le skill échoue sans explication.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Robuste</div>
+      <div class="compare-body">
+        <ol style="padding-left: 1.2rem; margin: 0;">
+          <li>Utiliser l'ID du <em>dossier</em> depuis drive-structure.md</li>
+          <li><code>search_files(parentId = ID_DOSSIER)</code></li>
+          <li>Choisir le fichier dans les résultats</li>
+          <li><code>read_file_content(fileId)</code></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <p>
+    Exception : les documents <em>stables et clés</em> (Tableaux Gouvernance,
+    Créneaux bénévoles) peuvent avoir leur ID cité directement dans
+    drive-structure.md, comme on le fait pour les bases Notion.
+    Mais même là, on lit d'abord le fichier de référence, pas le skill.
+  </p>
+
+  <!-- ─── 5. UN SKILL CONCRET ──────────────────────────────────────────── -->
+  <h2>5. Créer le skill <code>cherche-cr-ca</code></h2>
+
+  <p>
+    Un exemple concret : un skill qui retrouve le dernier CR CA dans Drive
+    et en extrait les points de décision.
+  </p>
+
+  <pre><code># SKILL.md — cherche-cr-ca
+
+## Quand utiliser ce skill
+Quand on veut retrouver les décisions du dernier Conseil d'Administration
+enregistrées dans Drive (CRs 2025 et avant).
+Pour les CRs 2026+, voir notion-structure.md.
+
+## Contexte à lire en premier
+- reference/drive-structure.md → IDs des dossiers CA par année
+
+## Étapes
+
+### 1 — Identifier le dossier CA de l'année
+Lire reference/drive-structure.md.
+Prendre l'ID du dossier de l'année demandée
+(ex. 2025 → 1BYIZfmSNz-FZwmdh2RfggnFOuf28tEpM).
+
+### 2 — Lister les CR CA dans ce dossier
+search_files({
+  query: "parentId = 'ID_DU_DOSSIER'",
+  orderBy: "modifiedTime desc",
+  pageSize: 5
+})
+→ Identifier le document le plus récent avec "CA" dans le titre.
+
+### 3 — Lire le contenu
+read_file_content({ fileId: ID_DU_FICHIER_TROUVE })
+
+### 4 — Extraire les décisions
+Identifier dans le texte :
+- Les décisions prises (votes, validations)
+- Les actions assignées à des personnes
+- Les points ouverts ou reportés au prochain CA
+
+### 5 — Résumer
+Format :
+📋 CR CA du [date]
+
+✅ Décisions :
+- [liste]
+
+👤 Actions assignées :
+- [liste]
+
+⏭️ Points reportés :
+- [liste]</code></pre>
+
+  <p>
+    Ce skill illustre le pattern complet : lire la reference doc, chercher
+    dans Drive avec un ID de dossier (pas un ID de fichier), lire le fichier
+    trouvé, raisonner, résumer.
+  </p>
+
+  <!-- ─── 6. COMBINER DRIVE ET NOTION ──────────────────────────────────── -->
+  <h2>6. Combiner Drive et Notion dans un même skill</h2>
+
+  <p>
+    Le cas le plus courant n'est pas "Drive <em>ou</em> Notion" —
+    c'est les deux. Un skill de brief complet pourrait :
+  </p>
+
+  <ol>
+    <li>Lire les tâches Notion (<code>notion-query-database-view</code>)</li>
+    <li>Lire le dernier CR CA Drive pour les décisions du CA</li>
+    <li>Lire les créneaux bénévoles Drive pour le planning de la semaine</li>
+    <li>Lire les messages Slack de la semaine (<code>slack_read_channel</code>)</li>
+    <li>Composer un brief unifié avec toutes ces sources</li>
+  </ol>
+
+  <p>
+    C'est exactement ce que la leçon 5 a posé comme cible.
+    Maintenant tu as la troisième jambe : Drive.
+    Le skill <code>brief-hebdo-actif</code> peut être enrichi
+    pour inclure cette lecture.
+  </p>
+
+  <div class="callout">
+    <strong>Ordre d'exécution conseillé dans un skill multi-sources</strong><br />
+    Fetch en parallèle quand possible (Notion + Slack + Drive).
+    Raisonner ensuite sur l'ensemble.
+    Agir (Slack, Notion) uniquement après avoir tout lu.
+    Ne jamais agir avant de fetcher — c'est le principe de base depuis la leçon 1.
+  </div>
+
+  <!-- ─── QUIZ ─────────────────────────────────────────────────────────── -->
+  <h2>Quiz</h2>
+
+  <!-- Q1 -->
+  <div class="quiz-block" id="q1">
+    <p class="quiz-question">
+      Tu veux retrouver le CR CA de mars 2025. Quelle est la première étape ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Appeler <code>read_file_content</code> avec l'ID du CR
+      </button>
+      <button class="quiz-option" onclick="answer('q1', true)">
+        Lire <code>reference/drive-structure.md</code> pour trouver l'ID
+        du dossier 2025, puis <code>search_files</code> dans ce dossier
+      </button>
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Faire <code>fullText contains 'mars 2025'</code> sur tout Drive
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q1-feedback"></p>
+  </div>
+
+  <!-- Q2 -->
+  <div class="quiz-block" id="q2">
+    <p class="quiz-question">
+      Quelle est la différence entre <code>title contains</code>
+      et <code>fullText contains</code> dans une requête Drive ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q2', false)">
+        <code>fullText</code> est plus précis — il cherche dans le corps du document
+      </button>
+      <button class="quiz-option" onclick="answer('q2', true)">
+        <code>title contains</code> cherche dans le nom du fichier (rapide).
+        <code>fullText contains</code> cherche dans le contenu (lent, peu fiable pour les Docs)
+      </button>
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Aucune différence — les deux cherchent dans le titre et le contenu
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q2-feedback"></p>
+  </div>
+
+  <!-- Q3 -->
+  <div class="quiz-block" id="q3">
+    <p class="quiz-question">
+      Le CR CA du 24 juin 2026 est dans Notion.
+      Le CR CA d'avril 2025 est dans Drive.
+      Où est-ce documenté dans le workspace MZD ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Dans NOTES.md — les préférences de l'apprenant
+      </button>
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Dans le SKILL.md de <code>cherche-cr-ca</code>
+      </button>
+      <button class="quiz-option" onclick="answer('q3', true)">
+        Dans les reference docs — <code>notion-structure.md</code> et
+        <code>drive-structure.md</code> — et dans le tableau comparatif de
+        <code>drive-structure.md</code>
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q3-feedback"></p>
+  </div>
+
+  <!-- ─── CE QU'ON A CONSTRUIT ────────────────────────────────────────── -->
+  <h2>Ce qu'on a appris dans cette leçon</h2>
+
+  <ul>
+    <li>
+      <strong>Drive vs Notion</strong> — les CRs CA récents sont dans Notion,
+      les anciens dans Drive, le planning bénévoles dans Drive, les tâches dans Notion
+    </li>
+    <li>
+      <strong>Les trois outils Drive MCP</strong> —
+      <code>search_files</code>, <code>get_file_metadata</code>, <code>read_file_content</code>
+    </li>
+    <li>
+      <strong>La syntaxe de requête</strong> —
+      <code>parentId =</code>, <code>title contains</code>, <code>mimeType =</code>,
+      combinables avec <code>and</code>
+    </li>
+    <li>
+      <strong>Le pattern "search before read"</strong> — chercher dans le dossier
+      parent, puis lire le fichier trouvé
+    </li>
+    <li>
+      <strong><code>reference/drive-structure.md</code></strong> — la troisième
+      reference doc, avec les IDs des dossiers CA et Gouvernance
+    </li>
+    <li>
+      <strong>Fetch multi-sources</strong> — Notion + Drive + Slack peuvent être
+      lus dans un seul skill avant de raisonner
+    </li>
+  </ul>
+
+  <!-- ─── NAVIGATION ───────────────────────────────────────────────────── -->
+  <nav class="lesson-nav">
+    <a href="0006-autonomie-planifiee.html">← Leçon 6 : Crons</a>
+    <span class="lesson-nav-current">Leçon 7</span>
+    <a href="0008-fetch-parallele-multi-sources.html">Leçon 8 : Fetch parallèle →</a>
+  </nav>
+
+</article>
+
+<script>
+  const feedback = {
+    q1: {
+      ok: 'Exact. Le pattern "search before read" : d\'abord trouver l\'ID du dossier dans drive-structure.md, puis search_files dans ce dossier pour trouver le bon document, puis read_file_content. Lire directement par ID est fragile si le fichier est déplacé.',
+      ko: 'Pas tout à fait. Avant de lire quoi que ce soit, il faut trouver le fichier. On ne connaît pas l\'ID du CR de mars 2025 par cœur — on cherche d\'abord dans le dossier 2025 via search_files.'
+    },
+    q2: {
+      ok: 'Correct. title contains cherche dans le nom du fichier — c\'est la recherche à privilegier dans les skills. fullText cherche dans le contenu des documents, mais c\'est lent et peu fiable pour les Google Docs. Mieux vaut trouver le bon fichier par titre, puis appeler read_file_content pour en lire le contenu.',
+      ko: 'Non. La différence est importante : title contains cherche dans le nom du fichier (rapide, fiable), fullText cherche dans le contenu (lent, peu fiable pour les Google Docs). Dans les skills, privilégie title contains pour trouver un fichier, puis read_file_content pour en lire le contenu.'
+    },
+    q3: {
+      ok: 'Exact. Les reference docs sont le lieu central de cette connaissance. drive-structure.md contient le tableau comparatif "Drive / Notion" qui explique où chercher quoi. C\'est pour ça que les skills commencent par lire ces fichiers.',
+      ko: 'Non. Cette information est dans les reference docs — précisément dans drive-structure.md qui contient un tableau "Relation Drive / Notion". C\'est le rôle des reference docs : centraliser ce type de connaissance sur l\'organisation pour que les skills n\'aient pas à le deviner.'
+    }
+  };
+
+  function answer(questionId, isCorrect) {
+    const block = document.getElementById(questionId);
+    block.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = true);
+    const fb = document.getElementById(questionId + '-feedback');
+    fb.classList.add('visible');
+    fb.textContent = isCorrect ? feedback[questionId].ok : feedback[questionId].ko;
+    fb.classList.toggle('correct', isCorrect);
+    fb.classList.toggle('wrong', !isCorrect);
+  }
+</script>
+</body>
+</html>
