@@ -1,0 +1,5 @@
+# Leading words
+
+Un leading word recrute un prior du préentraînement en un seul token — là où la prose approxime, le mot exact active. Trois leading words appliqués à `brief-hebdo-actif` : **triage** (étape 2 — tri par urgence/criticité), **dispatch** (étape 4 — routing vers Notion et Slack), **idempotent** (étape 3 — déjà présent, reconnu). Double service : dans le corps il ancre l'exécution, dans la description il ancre l'invocation (Claude relie "triage" dans un prompt au skill qui contient "triage" dans sa description). Test no-op : "si je supprime ce mot, Claude fait-il autre chose ?" Non → no-op, supprime. Oui → leading word, garde. La description de `brief-hebdo-actif` réécrite en leading words : "Weekly MZD triage — fetch context from Notion/Slack/Drive, triage items by urgency (🔴/🟡/🟢), dispatch alerts on blockers."
+
+**Implications** : Leçon 11 peut aborder les critères de complétion ("Continue quand…") — quand placer la barrière, comment la formuler pour qu'elle couvre les cas d'échec.

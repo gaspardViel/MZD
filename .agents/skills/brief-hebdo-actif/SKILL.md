@@ -1,9 +1,9 @@
 ---
 name: brief-hebdo-actif
 description: >
-  Produit le brief hebdomadaire MZD ET déclenche des actions
-  (tickets Notion, alertes Slack) sur les blocages détectés.
-  Utilise chaque vendredi ou avant toute réunion de coordination.
+  Weekly MZD triage — fetch context from Notion/Slack/Drive,
+  triage items by urgency (🔴/🟡/🟢), dispatch alerts on blockers.
+  Use every Friday or before any coordination meeting.
 ---
 
 ## Contexte à lire avant de commencer
@@ -37,18 +37,16 @@ c) Dernier CR CA Drive :
 
 Continue quand toutes les tentatives sont terminées, qu'elles aient réussi ou non.
 
-## Étape 2 — Analyser et classer
+## Étape 2 — Triage
 
-Pour chaque tâche et chaque décision Slack disponibles, classe dans :
+Triage chaque item disponible (tâches Notion + décisions Slack) :
 
-- 🔴 **BLOQUÉE** : tâche "En cours" sans activité depuis plus de 5 jours,
-  ou mission identifiée sans responsable assigné
-- 🟡 **À SURVEILLER** : tâche proche de l'échéance, responsable présent
-  mais pas de mise à jour récente
-- 🟢 **EN ORDRE** : avancement visible, responsable clair
+- 🔴 bloqué : tâche "En cours" sans activité > 5 jours, ou sans responsable assigné
+- 🟡 à surveiller : échéance proche, pas de mise à jour récente
+- 🟢 en ordre : avancement visible, responsable identifié
 
-Si une source est manquante, ne pas classer d'items pour cette source.
-Continue quand chaque item disponible est classé.
+Si une source est manquante, ne pas triager ses items.
+Continue quand chaque item disponible est trié.
 
 ## Étape 3 — Vérifier l'idempotence avant d'agir
 
@@ -61,22 +59,20 @@ exact "🔴 Alerte — [nom de l'item]".
 
 Continue quand chaque item 🔴 a été vérifié.
 
-## Étape 4 — Agir sur les blocages 🔴
+## Étape 4 — Dispatch
 
-Pour chaque item 🔴 non déjà traité :
+Dispatch chaque 🔴 non idempotent :
 
-a) Appelle `notion-create-pages` dans la base "Tâches MZD" :
+a) `notion-create-pages` dans la base "Tâches MZD" :
    - Titre : "🔴 Alerte — [nom de l'item bloqué]"
    - Statut : "À débloquer"
    - Description : contexte du blocage et action attendue
 
-b) Appelle `slack_send_message` sur #échanges-ca-équipe
-   (→ ID dans reference/slack-channels.md) :
+b) `slack_send_message` sur #échanges-ca-équipe (→ ID dans reference/slack-channels.md) :
    - 3 lignes maximum
-   - Format : "🔴 *[Nom du blocage]* — [responsable] · Action attendue : [quoi] · [lien Notion]"
+   - "🔴 *[Nom du blocage]* — [responsable] · Action : [quoi] · [lien Notion]"
 
-Critère : chaque item 🔴 non déjà traité a un ticket Notion ET
-un message Slack confirmés avant de passer à l'étape suivante.
+Continue quand chaque 🔴 a un ticket Notion ET un message Slack confirmés.
 
 ## Étape 5 — Produire le brief final
 
