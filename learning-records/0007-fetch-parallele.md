@@ -1,0 +1,5 @@
+# Fetch parallèle et multi-sources
+
+L'apprenant a intégré le pattern de fetch parallèle dans l'architecture des skills. Points clés : le temps d'un fetch séquentiel = somme des durées individuelles ; en parallèle = durée de la source la plus lente. Règle fondamentale : deux opérations sont parallélisables si aucune n'a besoin du résultat de l'autre — les lectures sont toujours parallélisables entre elles, les actions sont toujours séquentielles. Syntaxe dans un SKILL.md : lister les opérations sous une même étape avec le mot "simultanément", suivi d'une barrière explicite "Continue quand toutes les réponses sont disponibles". `brief-hebdo-actif` mis à jour : étapes 1 et 2 fusionnées en un fetch parallèle à trois sources (Notion + Slack + Drive CR CA), brief enrichi d'une section "Contexte CA".
+
+**Implications** : Leçon 9 peut aborder la gestion des erreurs dans les skills — que faire quand une source ne répond pas ou renvoie un résultat vide ? Stratégies : continuer avec les sources disponibles, signaler le manque dans le brief, ne jamais inventer de contexte manquant.
