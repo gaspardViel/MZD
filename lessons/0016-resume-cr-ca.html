@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 16 — Résumés de CR CA</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 16 · Claude Code × MZD</p>
+  <h1>Résumés de CR CA</h1>
+  <p class="lesson-subtitle">
+    Transformer un compte-rendu administratif en contenu lisible
+    par les bénévoles — sans perdre la fidélité à la source.
+  </p>
+
+  <h2>Où on en est</h2>
+
+  <p>
+    En leçon 15, tu as construit <code>gouvernance-partager</code> — un skill
+    qui fetche la structure MZD depuis Notion et produit un document de
+    référence durable pour les bénévoles. Tu connais la différence entre
+    données stables et dynamiques, et entre les patterns triage et orient.
+  </p>
+
+  <p>
+    Il reste un bloc de la mission : les <strong>résumés de CR CA</strong>.
+    Les comptes-rendus du Conseil d'Administration existent dans Notion ou Drive.
+    Mais ils sont écrits en langage administratif, pour un usage juridique et
+    interne. Les bénévoles n'y ont pas facilement accès — et même quand ils y
+    ont accès, ils ne savent pas quoi en retenir.
+  </p>
+
+  <h2>1. Le problème du document formel</h2>
+
+  <p>
+    Un CR de CA est un document légal. Il consigne les décisions, les votes,
+    les présences, les points à l'ordre du jour. Il est écrit pour être
+    <em>juste</em> — pas pour être <em>lisible</em>.
+  </p>
+
+  <p>Ce qui intéresse un bénévole qui lit un CR CA :</p>
+  <ul>
+    <li>Qu'est-ce qui a été décidé qui me concerne ?</li>
+    <li>Pourquoi cette décision a été prise ?</li>
+    <li>Est-ce que quelque chose va changer dans mon pôle ou ma façon de travailler ?</li>
+  </ul>
+
+  <p>Ce que le CR CA dit à la place :</p>
+  <ul>
+    <li>"Le CA a voté à l'unanimité la résolution n°3 relative à l'affectation budgétaire du pôle X."</li>
+    <li>"Point n°7 — informations diverses : [néant]."</li>
+    <li>Listes de présence, signatures, quorum.</li>
+  </ul>
+
+  <p>
+    L'écart entre les deux n'est pas un défaut du document — c'est sa
+    fonction. Le skill <code>resume-cr-ca</code> comble cet écart.
+  </p>
+
+  <h2>2. La transformation documentaire</h2>
+
+  <p>C'est un troisième pattern, distinct du triage et de l'orient :</p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Pattern</th><th>Source</th><th>Output</th><th>Skill</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Triage</strong></td>
+        <td>Données en cours (tâches, messages Slack)</td>
+        <td>Rapport opérationnel éphémère</td>
+        <td><code>brief-hebdo-actif</code></td>
+      </tr>
+      <tr>
+        <td><strong>Orient</strong></td>
+        <td>Structure organisationnelle dans Notion</td>
+        <td>Document de référence durable</td>
+        <td><code>gouvernance-partager</code></td>
+      </tr>
+      <tr>
+        <td><strong>Transformation</strong></td>
+        <td>Document formel (CR CA, PV)</td>
+        <td>Résumé accessible pour un public différent</td>
+        <td><code>resume-cr-ca</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Ce qui distingue la transformation des deux autres patterns :
+    la <strong>source a un public cible différent de l'output</strong>.
+    Le CR CA est écrit pour le CA. Le résumé est écrit pour les bénévoles.
+    Ce n'est pas une reformulation — c'est un changement de public.
+  </p>
+
+  <h2>3. Les deux tensions</h2>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">Trop fidèle</div>
+      <div class="compare-body">
+        <em>"Le CA a délibéré sur la résolution relative à l'affectation
+        du budget pôle communication et a voté favorablement à l'unanimité."</em><br /><br />
+        Résultat : illisible. Aucune valeur ajoutée.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Bien transformé</div>
+      <div class="compare-body">
+        <em>"Le CA a validé le budget communication pour le trimestre.
+        Le pôle peut lancer les actions prévues sans attendre
+        une nouvelle validation."</em><br /><br />
+        Résultat : actionnable, lisible, utile.
+      </div>
+    </div>
+  </div>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">Trop interprété</div>
+      <div class="compare-body">
+        <em>"Le CA semble vouloir réorienter la stratégie communication
+        vers les réseaux sociaux."</em><br /><br />
+        Résultat : hallucination éditoriale. Ce n'est pas dans le CR.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Bien borné</div>
+      <div class="compare-body">
+        <em>"Budget communication validé. Aucune mention de priorités
+        spécifiques dans le CR — pour les détails, contacter le
+        référent pôle communication."</em><br /><br />
+        Résultat : fidèle à la source, honnête sur ses limites.
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Traduis le langage, préserve les faits</strong><br /><br />
+    Tu peux simplifier le vocabulaire, raccourcir les formulations,
+    changer la structure. Tu ne peux pas inférer des intentions,
+    ajouter du contexte absent du CR, ni omettre une décision parce
+    qu'elle semble peu importante.
+  </div>
+
+  <h2>4. Le filtre de pertinence</h2>
+
+  <div class="callout warn">
+    <strong>Filtre silencieux = danger</strong><br /><br />
+    Si le skill omet un point sans le signaler, le bénévole croit avoir
+    lu tout le CR. Le filtre doit être déclaré dans le résumé :
+    "Points administratifs non repris ici — CR complet disponible [lien]."
+  </div>
+
+  <p>Structure de résumé en trois blocs :</p>
+  <ol>
+    <li><strong>Décisions prises</strong> — une phrase par décision, impact concret.</li>
+    <li><strong>Contexte clé</strong> — 2-4 phrases, seulement ce qui est dans le CR. Optionnel.</li>
+    <li><strong>Pied de page</strong> — date du CA, lien CR complet, points omis mentionnés.</li>
+  </ol>
+
+  <h2>5. Conception du skill</h2>
+
+  <pre><code>---
+name: resume-cr-ca
+description: >
+  Summarize a CA meeting (compte-rendu) into a volunteer-facing digest —
+  fetch the CR from Notion or Drive, extract decisions and key context,
+  translate administrative language into plain French, and post to Slack
+  or Notion.
+  Run after each CA meeting once the CR is published.
+argument-hint: "[lien ou ID du CR à résumer]"
+---
+
+## Objectif
+
+Produire un résumé en trois blocs du dernier CR de CA — lisible par
+un bénévole qui n'était pas présent, fidèle à la source, sans inférence.
+
+## Étape 0 — Charger les références
+
+Lire reference/notion-structure.html et/ou reference/drive-structure.html
+pour localiser les CRs de CA. Si un ID est fourni en argument, l'utiliser.
+
+## Étape 1 — Fetcher le CR
+
+Récupérer le contenu complet depuis Notion ou Drive.
+Si inaccessible : arrêter et signaler.
+
+## Étape 2 — Extraire et filtrer
+
+Identifier : décisions votées + contexte explicite + points administratifs.
+Ne pas inférer. Si ambigu : retranscrire entre guillemets.
+
+## Étape 3 — Rédiger
+
+Bloc 1 — Décisions : une phrase par décision, langage courant.
+Bloc 2 — Contexte clé : 2-4 phrases max, seulement si dans le CR.
+Bloc 3 — Pied de page : date, lien source, points omis mentionnés.
+
+## Étape 4 — Publier
+
+Slack / Notion si fourni, sinon afficher et demander confirmation.
+
+## Critère de complétion
+
+✓ Toutes les décisions du CR sont dans le Bloc 1
+✓ Aucune information absente du CR dans le résumé
+✓ Pied de page avec lien source et mention des points omis
+✓ Un bénévole comprend l'impact sans lire le CR complet</code></pre>
+
+  <h2>Quiz</h2>
+
+  <div class="quiz-block" id="q1">
+    <p class="quiz-question">
+      Le CR mentionne une discussion sur la stratégie de communication
+      sans conclure par une décision formelle. Que fait le skill ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Il résume la discussion et indique quelle direction semble se dégager
+      </button>
+      <button class="quiz-option" onclick="answer('q1', true)">
+        Il mentionne la discussion telle qu'elle apparaît dans le CR,
+        sans inférer de conclusion
+      </button>
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Il ignore ce point — aucune décision = aucun intérêt pour les bénévoles
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q1-feedback"></p>
+  </div>
+
+  <div class="quiz-block" id="q2">
+    <p class="quiz-question">
+      Le CR contient 4 décisions et 8 points administratifs.
+      Que fait le résumé des 8 points administratifs ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Il les ignore complètement — pas pertinent pour les bénévoles
+      </button>
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Il les développe brièvement pour montrer que rien n'est omis
+      </button>
+      <button class="quiz-option" onclick="answer('q2', true)">
+        Il les mentionne en une ligne dans le pied de page
+        avec un lien vers le CR complet — filtre déclaré, pas silencieux
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q2-feedback"></p>
+  </div>
+
+  <div class="quiz-block" id="q3">
+    <p class="quiz-question">
+      Quelle est la différence principale entre le pattern "orient"
+      et le pattern "transformation" ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Orient produit des documents courts, transformation des documents longs
+      </button>
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Orient fetche depuis Notion, transformation depuis Drive
+      </button>
+      <button class="quiz-option" onclick="answer('q3', true)">
+        Orient synthétise pour le même public que la source.
+        Transformation convertit d'un public source (CA)
+        vers un public cible différent (bénévoles)
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q3-feedback"></p>
+  </div>
+
+  <h2>Ce qu'on a appris dans cette leçon</h2>
+  <ul>
+    <li><strong>Pattern transformation</strong> — convertir un document formel pour un public différent de son public source.</li>
+    <li><strong>Traduis le langage, préserve les faits</strong> — inférence interdite, simplification autorisée.</li>
+    <li><strong>Filtre déclaré, pas silencieux</strong> — les points omis sont mentionnés en pied de page avec le lien source.</li>
+    <li><strong>Structure en trois blocs</strong> — décisions, contexte clé (optionnel), pied de page.</li>
+  </ul>
+
+  <div class="ask-box">
+    <strong>Une question ?</strong> Demande à ton agent.
+    "Comment trouver les CRs de CA dans notre Notion ?" ou
+    "Comment gérer un CR qui ne liste pas clairement les décisions ?"
+    sont de bonnes questions de départ.
+  </div>
+
+  <nav class="lesson-nav">
+    <a href="0015-gouvernance-partager.html">← Leçon 15 : Gouvernance partager</a>
+    <span class="lesson-nav-current">Leçon 16</span>
+    <span class="lesson-nav-next">Leçon 17 (à venir)</span>
+  </nav>
+
+</article>
+
+<script>
+  const feedback = {
+    q1: {
+      ok: 'Exact. Une discussion sans décision peut quand même intéresser les bénévoles. Mais le skill ne peut pas inférer de conclusion. Il retranscrit : "Le CA a discuté de la stratégie communication — aucune décision prise lors de cette séance." Fidèle et utile sans être spéculatif.',
+      ko: 'Non. Inférer une direction à partir d\'une discussion non conclusive, c\'est de l\'hallucination éditoriale. Et ignorer le point, c\'est un filtre silencieux. La bonne réponse : retranscrire la discussion telle qu\'elle apparaît, sans la conclure.'
+    },
+    q2: {
+      ok: 'Exact. Un filtre silencieux fait croire au bénévole qu\'il a tout lu. Le pied de page "Points administratifs non repris (quorum, signatures) — CR complet : [lien]" est la forme correcte. Ni trop détaillé, ni invisible.',
+      ko: 'Non. Développer les 8 points administratifs surcharge le résumé. Les ignorer complètement est un filtre silencieux dangereux. La solution : les mentionner en une ligne dans le pied de page avec le lien vers la source.'
+    },
+    q3: {
+      ok: 'Exact. Orient synthétise de l\'information pour les bénévoles — la source et le public sont alignés. Transformation change de public : la source est un document écrit pour le CA (langage juridique, exhaustivité formelle), l\'output est écrit pour les bénévoles (langage courant, pertinence filtrée). Ce changement de public est ce qui crée les tensions fidélité / accessibilité.',
+      ko: 'Non. La distinction n\'est ni sur la longueur ni sur la source technique. La vraie différence est le changement de public cible : orient produit pour le même public que la source, transformation convertit d\'un public source (CA) vers un public différent (bénévoles).'
+    }
+  };
+
+  function answer(questionId, isCorrect) {
+    const block = document.getElementById(questionId);
+    block.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = true);
+    const fb = document.getElementById(questionId + '-feedback');
+    fb.classList.add('visible');
+    fb.textContent = isCorrect ? feedback[questionId].ok : feedback[questionId].ko;
+    fb.classList.toggle('correct', isCorrect);
+    fb.classList.toggle('wrong', !isCorrect);
+  }
+</script>
+</body>
+</html>
