@@ -15,7 +15,8 @@ Treat the current directory as a teaching workspace. The state of their learning
 - `./reference/*.html`: A directory of reference materials. These are the compressed learnings from the lessons - cheat sheets, reference algorithms, syntax, yoga poses, glossaries. They are the raw units of learning. They should be beautiful documents which print out well, and are designed for quick reference.
 - `RESOURCES.md`: A list of resources which can be explored to ground your teaching in contextual knowledge, or to acquire knowledge and wisdom. Use the format in [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md).
 - `./learning-records/*.md`: A directory of learning records, which capture what the user has learned. These are loosely equivalent to architectural decision records in software development - they capture non-obvious lessons and key insights that may need to be revised later, or drive future sessions. These should be used to calculate the zone of proximal development. They are titled `0001-<dash-case-name>.md`, where the number increments each time. Use the format in [LEARNING-RECORD-FORMAT.md](./LEARNING-RECORD-FORMAT.md).
-- `./lessons/*.html`: A directory of lessons. A **lesson** is a single, self-contained HTML output that teaches one tightly-scoped thing tied to the mission. This is the primary unit of teaching in this workspace.
+- `./lessons/*.html`: A directory of lessons. A **lesson** is a single, self-contained HTML output that teaches one tightly-scoped thing tied to the mission, carrying an **axis** tag (see [Axes](#axes)). This is the primary unit of teaching in this workspace.
+- `CURRICULUM.md`: The learning **topology** — the **axes** (tracks) lessons fall along, the **orphans** not yet on an axis, and **dormant** axes. The single source of truth for which axes exist. See [Axes](#axes); use the format in [CURRICULUM-FORMAT.md](./CURRICULUM-FORMAT.md).
 - `./assets/*`: Reusable **components** shared across lessons. See [Assets](#assets).
 - `NOTES.md`: A scratchpad for you to jot down user preferences, or working notes.
 
@@ -42,7 +43,7 @@ Fluency can give the user an illusory sense of mastery, but storage strength is 
 
 - Using retrieval practice (recall from memory)
 - Spacing (distributing practice over time)
-- Interleaving (mixing up different but related topics in practice - for skills practice only)
+- Interleaving (alternating **axes** in practice — see [Zone Of Proximal Development](#zone-of-proximal-development) for the rule)
 
 ## Lessons
 
@@ -78,15 +79,26 @@ Failing to understand the mission will mean knowledge acquisition is not grounde
 
 Missions may change as the user develops more skills and knowledge. This is normal - make sure to update the `MISSION.md` and add a learning record to capture the change. Confirm with the user before changing the mission.
 
+## Axes
+
+Lessons accumulate along **axes** — distinct learning tracks, each a nameable concern (skill-craft, governance, coordination…) grounded in one facet of the mission. Axes are not declared up front; they **emerge** as lessons cluster, so you _recognise_ them rather than plan them. The live topology lives in `CURRICULUM.md`; every lesson carries an axis tag, so an untagged lesson is by definition an **orphan**.
+
+Your job at lesson time is **detection**, never promotion:
+
+- **Quarantine over shoehorning.** When a lesson's fit to any active axis is weak — you would hesitate to write its tag — leave it an **orphan** rather than forcing it. The misfit is signal.
+- **Flag, don't promote.** When ≥2 orphans share a concern you can name in a single **leading word**, surface it — _"3 orphans seem to form an axis `diffusion` — run `/curriculum` to decide"_ — and stop. The bar is nameability, not a count: orphans you cannot name in one word are not yet an axis. The proposed word is the seed `/curriculum` works from.
+
+Naming an axis, re-grounding it against the mission, and retiring dormant axes are deliberate, confirmed acts owned by the `/curriculum` skill — never done here. teach only detects and flags.
+
 ## Zone Of Proximal Development
 
 Each lesson, the user should always feel as if they are being challenged 'just enough'.
 
-The user may specify an exact thing they want to learn. If they don't, figure out their zone of proximal development by:
+The user may specify an exact thing they want to learn, including which **axis** to advance — honour it. Otherwise choose **per axis**:
 
-- Reading their `learning-records`
-- Figuring out the right thing to teach them based on their mission
-- Teach the most relevant thing that fits in their zone of proximal development
+- Compute the next-best lesson **within each active axis**, from its own `learning-records` and `CURRICULUM.md`. A new axis starts at the bottom of its own ladder, even when the user is advanced on others — never apply a global level to a fresh track.
+- Choose **which axis to advance** by **spacing**: favour the axis gone coldest (its newest lesson is the oldest). A cold axis is a target for revisiting, never a reason to retire it.
+- **Interleaving** — deliberately alternating axes — drives that choice only for axes whose dominant mode is _skills_ (recorded per axis in `CURRICULUM.md`); knowledge and wisdom axes are paced by spacing alone.
 
 ## Knowledge
 
