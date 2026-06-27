@@ -1,0 +1,5 @@
+# Failure modes des skills
+
+Cinq pathologies structurelles qui s'installent silencieusement : **Sédiment** (instructions accumulées couche par couche sans nettoyage — diagnostic : relire comme un étranger, justifier chaque ligne) ; **Sprawl** (trop de responsabilités dans un seul skill — diagnostic : règle de la phrase unique sans "ET aussi", remède : découper en skills composables) ; **Complétion prématurée** (barrières perdues lors des modifications — diagnostic : toute boucle ou fetch parallèle doit avoir un "Continue quand…") ; **No-op** (sections entières qui ne changent pas le comportement — diagnostic : test no-op par paragraphe) ; **Duplication** (même valeur à deux endroits qui divergent silencieusement — diagnostic : chercher les répétitions de nombres, noms, délais ; remède : source unique). État de `brief-hebdo-actif` : 4/5 sains, un point de duplication résiduel sur le nom du canal Slack (mentionné étape 1b et étape 4b).
+
+**Implications** : Leçon 13 peut aborder context load vs cognitive load — quand un skill doit être model-invoked vs user-invoked, et comment la description orchestre l'invocation automatique.

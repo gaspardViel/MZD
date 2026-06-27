@@ -1,0 +1,5 @@
+# Critères de complétion
+
+Le critère de complétion (`Continue quand…`) est la barrière qui empêche Claude d'avancer avant que le travail soit réellement terminé. Sans elle, Claude applique une heuristique optimiste — il passe à la suite dès qu'il "estime avoir assez". Trois pièges : complétion prématurée (sort d'une boucle trop tôt), dépendance ignorée (commence le triage avant la fin du fetch), attente infinie (barrière inatteignable si une source échoue). Formulation robuste : "Continue quand toutes les tentatives sont terminées, qu'elles aient réussi ou non" — couvre l'échec. Formulation fragile : "Continue quand les réponses sont disponibles" — bloque sur erreur. Trois endroits clés : après un fetch parallèle, après une boucle d'actions, avant une étape dépendante. La condition doit être vérifiable sans ambiguïté : "chaque item 🔴 a un ticket ET un message confirmés". Le mot "disponible" dans "chaque item disponible" adapte la barrière à la réalité du fetch — on n'attend pas ce qui n'existe pas.
+
+**Implications** : Leçon 12 peut aborder les failure modes — les 5 pièges structurels des skills (complétion prématurée, sédiment, sprawl, no-op, duplication).

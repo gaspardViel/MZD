@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 10 — Leading words</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 10 · Claude Code × MZD</p>
+  <h1>Leading words</h1>
+  <p class="lesson-subtitle">
+    Remplacer des paragraphes entiers par un seul mot —
+    en recrutant ce que Claude sait déjà.
+  </p>
+
+  <!-- ─── RAPPEL ──────────────────────────────────────────────────────────── -->
+  <h2>Où on en est</h2>
+
+  <p>
+    Tu sais écrire des skills qui fetchent, raisonnent, agissent, gèrent les
+    erreurs. Le prochain saut n'est pas d'ajouter des étapes — c'est de
+    <em>réduire</em> ce que tu écris tout en obtenant plus de comportement.
+  </p>
+
+  <p>
+    La technique s'appelle un <strong>leading word</strong>.
+    C'est le concept le plus puissant du framework Matt Pocock —
+    et le plus contre-intuitif : on écrit <em>moins</em>
+    pour obtenir plus de précision.
+  </p>
+
+  <!-- ─── 1. CE QU'EST UN LEADING WORD ─────────────────────────────────── -->
+  <h2>1. La mécanique</h2>
+
+  <p>
+    Claude a été entraîné sur des milliards de textes. Il porte en lui
+    des concepts denses, déjà définis, avec toutes leurs implications.
+    Quand tu écris un de ces mots dans un SKILL.md, Claude n'a pas besoin
+    qu'on lui explique — il active le prior.
+  </p>
+
+  <p>
+    Matt Pocock appelle ça un <strong>Leitwort</strong> : un mot-guide
+    qui ancre une région entière de comportement.
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">Sans leading word (prose)</div>
+      <div class="compare-body">
+        <em>"Pour chaque tâche, évalue son urgence et son impact.
+        Place les plus critiques en haut. Celles qui bloquent d'autres
+        personnes en priorité absolue. Celles qui sont proches de
+        l'échéance mais non bloquantes ensuite."</em><br /><br />
+        4 lignes pour décrire… ce que le mot suivant fait en un token.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Avec leading word</div>
+      <div class="compare-body">
+        <em>"Triage chaque tâche."</em><br /><br />
+        Claude sait ce que triage signifie — tri médical par urgence,
+        les cas critiques d'abord, les stables ensuite.
+        Il n'a pas besoin qu'on le lui explique.
+      </div>
+    </div>
+  </div>
+
+  <p>
+    Tu gagnes doublement : <strong>moins de tokens</strong>,
+    <em>et</em> <strong>un comportement plus ancré</strong> — parce que
+    "triage" appelle un prior bien défini, là où la prose appelle une
+    interprétation variable.
+  </p>
+
+  <!-- ─── 2. LE DOUBLE SERVICE ─────────────────────────────────────────── -->
+  <h2>2. Le double service d'un leading word</h2>
+
+  <p>
+    Un leading word sert à deux endroits dans un skill, avec deux effets
+    distincts.
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Où</th><th>Ce qu'il fait</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Dans le corps</strong> (les étapes)</td>
+        <td>Ancre l'<strong>exécution</strong> — Claude revient au même
+        comportement à chaque run, chaque fois que le mot apparaît</td>
+      </tr>
+      <tr>
+        <td><strong>Dans la description</strong> (le frontmatter)</td>
+        <td>Ancre l'<strong>invocation</strong> — quand tu utilises le même
+        mot dans tes prompts, Claude relie ce mot au skill et le déclenche
+        plus fiablement</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Si tu dis à Claude "fais un triage des tâches" dans un prompt libre,
+    et que le skill <code>brief-hebdo-actif</code> contient le mot
+    <em>triage</em> dans sa description — Claude fait le lien
+    et propose d'utiliser le skill. C'est la même raison pour laquelle
+    les bons noms de skills sont des mots que tu utilises naturellement.
+  </p>
+
+  <!-- ─── 3. LE TEST NO-OP ──────────────────────────────────────────────── -->
+  <h2>3. Le test no-op</h2>
+
+  <p>
+    Tout mot ne fait pas un bon leading word. Pour qu'il en soit un,
+    il doit <strong>changer le comportement par rapport au défaut</strong>.
+    C'est le test no-op.
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">No-op — Claude fait déjà ça</div>
+      <div class="compare-body">
+        <code>"Sois exhaustif."</code><br />
+        <code>"Sois précis."</code><br />
+        <code>"Travaille soigneusement."</code><br /><br />
+        Claude fait déjà ça par défaut.
+        Ces mots ne changent rien — tu paies des tokens pour rien.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Leading word — change le comportement</div>
+      <div class="compare-body">
+        <code>"Triage."</code> — recrute urgence médicale, tri par criticité<br />
+        <code>"Idempotent."</code> — recrute exactement le pattern "vérifier avant d'agir"<br />
+        <code>"Dispatch."</code> — recrute le routing : envoyer au bon endroit<br /><br />
+        Chacun ancre un comportement spécifique que la prose ne garantit pas.
+      </div>
+    </div>
+  </div>
+
+  <p>
+    La question à poser ligne par ligne dans un SKILL.md :
+    <em>"si je supprime ce mot, Claude fait-il autre chose ?"</em>
+    Si non — c'est un no-op. Supprime-le.
+    Si oui — c'est un leading word. Garde-le et amplifie-le.
+  </p>
+
+  <!-- ─── 4. TROUVER LES LEADING WORDS DANS BRIEF-HEBDO-ACTIF ──────────── -->
+  <h2>4. Chercher les opportunités dans <code>brief-hebdo-actif</code></h2>
+
+  <p>
+    Regardons les étapes 2 et 4 du skill actuel.
+    Deux passages sont de la prose là où un leading word suffit.
+  </p>
+
+  <h3>Étape 2 — "Analyser et classer"</h3>
+
+  <pre><code>Pour chaque tâche et chaque décision Slack disponibles, classe dans :
+- 🔴 BLOQUÉE : tâche "En cours" sans activité depuis plus de 5 jours...
+- 🟡 À SURVEILLER : tâche proche de l'échéance...
+- 🟢 EN ORDRE : avancement visible...</code></pre>
+
+  <p>
+    "Classe dans une des trois catégories" est de la prose qui décrit
+    du tri par urgence. Le mot qui encode ça en un token :
+    <strong>triage</strong>.
+  </p>
+
+  <h3>Étape 4 — "Agir sur les blocages 🔴"</h3>
+
+  <pre><code>Pour chaque item 🔴 non déjà traité :
+a) Appelle notion-create-pages...
+b) Appelle slack_send_message...
+Critère : chaque item 🔴 a un ticket ET un message confirmés...</code></pre>
+
+  <p>
+    "Agir sur les blocages" décrit du routing : envoyer chaque alerte
+    au bon endroit (Notion pour traçabilité, Slack pour visibilité).
+    Le mot : <strong>dispatch</strong>.
+  </p>
+
+  <h3>Ce qui est déjà un leading word</h3>
+
+  <p>
+    L'étape 3 utilise déjà <strong>idempotent</strong> — et c'est
+    exactement ça. "Idempotent" recrute le prior du développement :
+    une opération qui peut être répétée sans effet supplémentaire.
+    Claude sait qu'une vérification idempotente doit précéder l'action.
+    Ce mot fait son travail.
+  </p>
+
+  <!-- ─── 5. LE SKILL RÉÉCRIT ───────────────────────────────────────────── -->
+  <h2>5. <code>brief-hebdo-actif</code> avec leading words</h2>
+
+  <p>
+    Voici les deux étapes réécrites. Observe la densité : moins de prose,
+    même comportement — souvent plus précis.
+  </p>
+
+  <pre><code>## Étape 2 — Triage
+
+Triage chaque item disponible (tâches Notion + décisions Slack) :
+- 🔴 bloqué : sans activité > 5 jours ou sans responsable assigné
+- 🟡 à surveiller : échéance proche, pas de mise à jour récente
+- 🟢 en ordre : avancement visible, responsable identifié
+
+Si une source est manquante, ne pas triager ses items.
+Continue quand chaque item disponible est trié.
+
+
+## Étape 4 — Dispatch
+
+Dispatch chaque 🔴 non idempotent :
+
+a) notion-create-pages — ticket "🔴 Alerte — [nom]", statut "À débloquer"
+b) slack_send_message sur #échanges-ca-équipe — 3 lignes max
+   "🔴 *[nom]* — [responsable] · Action : [quoi] · [lien Notion]"
+
+Continue quand chaque 🔴 a un ticket Notion ET un message Slack confirmés.</code></pre>
+
+  <p>
+    Compte les lignes : l'étape 2 passe de 8 à 5. L'étape 4 passe de 10 à 6.
+    Et le comportement est <em>plus précis</em> — parce que "triage"
+    et "dispatch" sont des termes techniques avec des sémantiques bien définies.
+  </p>
+
+  <div class="callout">
+    <strong>La règle de Matt Pocock</strong><br />
+    "Hunt for opportunities to refactor skills to use leading words.
+    A triad spelled out at three sites, a description spending a sentence
+    to gesture at one idea — each is a passage begging to collapse
+    into a single token."<br /><br />
+    Trois lignes qui disent la même chose qu'un mot : supprime les trois, garde le mot.
+  </div>
+
+  <!-- ─── 6. LEADING WORDS DANS LA DESCRIPTION ─────────────────────────── -->
+  <h2>6. Le leading word dans la description</h2>
+
+  <p>
+    La description de <code>brief-hebdo-actif</code> dit actuellement :
+  </p>
+
+  <pre><code>description: >
+  Produit le brief hebdomadaire MZD ET déclenche des actions
+  (tickets Notion, alertes Slack) sur les blocages détectés.
+  Utilise chaque vendredi ou avant toute réunion de coordination.</code></pre>
+
+  <p>
+    "Produit le brief… et déclenche des actions… sur les blocages"
+    est de la prose. Le même skill en leading words :
+  </p>
+
+  <pre><code>description: >
+  Weekly MZD triage — fetch context from Notion/Slack/Drive,
+  triage items by urgency (🔴/🟡/🟢), dispatch alerts on blockers.
+  Use every Friday or before any coordination meeting.</code></pre>
+
+  <p>
+    Quand tu taperas "triage des tâches MZD" dans un prompt,
+    Claude connectera ce mot au skill et le proposera automatiquement.
+  </p>
+
+  <!-- ─── QUIZ ─────────────────────────────────────────────────────────── -->
+  <h2>Quiz</h2>
+
+  <!-- Q1 -->
+  <div class="quiz-block" id="q1">
+    <p class="quiz-question">
+      Pourquoi "triage" est un leading word efficace là où
+      "classe par urgence" ne l'est pas ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Parce que "triage" est plus court et économise des tokens
+      </button>
+      <button class="quiz-option" onclick="answer('q1', true)">
+        Parce que "triage" recrute un prior précis du préentraînement —
+        tri médical par criticité — que "classe par urgence" ne fait
+        qu'approximer avec des mots supplémentaires
+      </button>
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Parce que Claude comprend mieux les mots anglais que les mots français
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q1-feedback"></p>
+  </div>
+
+  <!-- Q2 -->
+  <div class="quiz-block" id="q2">
+    <p class="quiz-question">
+      Tu lis un SKILL.md et tu trouves la ligne "travaille de manière
+      rigoureuse et complète". Comment décider si c'est un no-op ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Si la ligne fait plus de 10 mots, c'est un no-op
+      </button>
+      <button class="quiz-option" onclick="answer('q2', true)">
+        Supprimer la ligne et observer si Claude fait autre chose.
+        Si rien ne change — c'est un no-op. Claude est déjà "rigoureux"
+        par défaut.
+      </button>
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Si le mot n'existe pas en anglais dans le préentraînement, c'est un no-op
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q2-feedback"></p>
+  </div>
+
+  <!-- Q3 -->
+  <div class="quiz-block" id="q3">
+    <p class="quiz-question">
+      Mettre le mot "triage" dans la <em>description</em> du skill
+      (pas seulement dans les étapes) sert à quoi ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q3', false)">
+        À documenter le skill pour les humains qui lisent le SKILL.md
+      </button>
+      <button class="quiz-option" onclick="answer('q3', false)">
+        À accélérer l'exécution en réduisant le nombre de tokens
+      </button>
+      <button class="quiz-option" onclick="answer('q3', true)">
+        À ancrer l'invocation — quand tu écris "triage" dans un prompt,
+        Claude relie ce mot au skill et le déclenche plus fiablement
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q3-feedback"></p>
+  </div>
+
+  <!-- ─── CE QU'ON A APPRIS ─────────────────────────────────────────────── -->
+  <h2>Ce qu'on a appris dans cette leçon</h2>
+
+  <ul>
+    <li>
+      <strong>Un leading word recrute un prior</strong> — il encode un concept
+      dense du préentraînement en un seul token, sans explication nécessaire
+    </li>
+    <li>
+      <strong>Double service</strong> — dans le corps il ancre l'exécution ;
+      dans la description il ancre l'invocation
+    </li>
+    <li>
+      <strong>Le test no-op</strong> — "si je supprime ce mot, Claude fait-il
+      autre chose ?" Non → no-op, supprime. Oui → leading word, garde et amplifie.
+    </li>
+    <li>
+      <strong>Triage, dispatch, idempotent</strong> — trois leading words
+      appliqués à <code>brief-hebdo-actif</code> : chacun remplace plusieurs
+      lignes de prose
+    </li>
+    <li>
+      <strong>Moins de tokens, comportement plus précis</strong> — le paradoxe
+      du leading word : réduire ce qu'on écrit améliore la prédictabilité
+    </li>
+  </ul>
+
+  <!-- ─── NAVIGATION ───────────────────────────────────────────────────── -->
+  <nav class="lesson-nav">
+    <a href="0009-gestion-des-erreurs.html">← Leçon 9 : Gestion des erreurs</a>
+    <span class="lesson-nav-current">Leçon 10</span>
+    <a href="0011-criteres-de-completion.html">Leçon 11 : Critères de complétion →</a>
+  </nav>
+
+</article>
+
+<script>
+  const feedback = {
+    q1: {
+      ok: 'Exact. L\'économie de tokens est réelle mais secondaire. L\'essentiel est que "triage" recrute un prior très précis — le tri médical : les cas critiques d\'abord, stabilisation des cas urgents, attente pour les cas stables. Claude n\'a pas besoin qu\'on le lui explique. "Classe par urgence" est une approximation en prose de ce prior ; "triage" est le prior lui-même.',
+      ko: 'Non. Économiser des tokens est un bénéfice réel mais pas la raison principale. Et la langue (anglais vs français) n\'est pas le critère — "triage" est un mot international. La vraie raison : "triage" est un concept dense du préentraînement, avec une sémantique précise que la prose ne fait qu\'approximer.'
+    },
+    q2: {
+      ok: 'Exact. Le test no-op est empirique, pas stylistique. Supprimer la ligne et observer. "Rigoureux et complet" ne change pas le comportement de Claude — il applique déjà ces qualités par défaut. C\'est un no-op : tu paies des tokens pour rien. Si tu veux plus de rigueur, un leading word fort comme "exhaustif" ou "relentless" (Matt Pocock\'s exemple) change vraiment le comportement.',
+      ko: 'Non. La longueur ou la langue ne sont pas les critères. Le test est comportemental : que fait Claude avec vs sans cette ligne ? "Travaille de manière rigoureuse" ne change rien — Claude est déjà rigoureux par défaut. C\'est ça, un no-op.'
+    },
+    q3: {
+      ok: 'Exact. La description sert à l\'invocation — pas à la documentation humaine. Quand tu écris "fais un triage des tâches MZD" dans un prompt, Claude cherche un skill dont la description contient "triage" et le déclenche. C\'est le double service du leading word : exécution dans le corps, invocation dans la description.',
+      ko: 'Non. La description d\'un skill model-invoked n\'est pas pour les humains — c\'est pour le modèle. Son rôle est de déclencher le skill quand le bon mot apparaît dans un prompt. Mettre "triage" dans la description crée un pont entre ta façon naturelle de parler ("faire un triage") et le skill que Claude doit appeler.'
+    }
+  };
+
+  function answer(questionId, isCorrect) {
+    const block = document.getElementById(questionId);
+    block.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = true);
+    const fb = document.getElementById(questionId + '-feedback');
+    fb.classList.add('visible');
+    fb.textContent = isCorrect ? feedback[questionId].ok : feedback[questionId].ko;
+    fb.classList.toggle('correct', isCorrect);
+    fb.classList.toggle('wrong', !isCorrect);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 13 — Context load vs cognitive load</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 13 · Claude Code × MZD</p>
+  <h1>Context load vs cognitive load</h1>
+  <p class="lesson-subtitle">
+    Quand laisser Claude décider seul d'appeler un skill —
+    et quand exiger que ce soit toi qui le fasses.
+  </p>
+
+  <!-- ─── RAPPEL ──────────────────────────────────────────────────────────── -->
+  <h2>Où on en est</h2>
+
+  <p>
+    Tu sais écrire un skill robuste, compact, avec des barrières solides
+    et sans failure modes. Il reste une décision de conception que tu n'as
+    pas encore posée explicitement : <em>qui déclenche ce skill ?</em>
+  </p>
+
+  <p>
+    Il y a deux réponses possibles. La réponse change la façon dont tu
+    écris la description — et elle détermine quels risques tu acceptes.
+  </p>
+
+  <!-- ─── 1. DEUX MODES D'INVOCATION ───────────────────────────────────── -->
+  <h2>1. Model-invoked vs user-invoked</h2>
+
+  <table class="data-table">
+    <thead>
+      <tr><th></th><th>Model-invoked</th><th>User-invoked</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Qui déclenche</strong></td>
+        <td>Claude reconnaît un pattern dans la conversation et appelle le skill seul</td>
+        <td>Tu écris <code>/nom-du-skill</code> ou le demandes explicitement</td>
+      </tr>
+      <tr>
+        <td><strong>Clé de déclenchement</strong></td>
+        <td>La description — Claude la lit pour décider si le skill correspond à l'intention</td>
+        <td>Le nom du skill — tu dois le connaître et savoir quand l'appeler</td>
+      </tr>
+      <tr>
+        <td><strong>Charge pour toi</strong></td>
+        <td>Faible — tu parles naturellement, Claude fait le lien</td>
+        <td>Plus haute — tu dois décider toi-même du bon moment</td>
+      </tr>
+      <tr>
+        <td><strong>Risque principal</strong></td>
+        <td>Claude peut se déclencher trop tôt, ou sur une mauvaise interprétation</td>
+        <td>Tu peux oublier d'appeler le skill au bon moment</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Ces deux modes coexistent dans un même projet. Tu choisis pour chaque skill
+    lequel lui convient — en fonction de deux critères : le <strong>context
+    load</strong> et le <strong>cognitive load</strong>.
+  </p>
+
+  <!-- ─── 2. CONTEXT LOAD ───────────────────────────────────────────────── -->
+  <h2>2. Context load</h2>
+
+  <p>
+    Le context load est la quantité d'information dont Claude a besoin
+    pour exécuter correctement le skill.
+  </p>
+
+  <p>
+    Un skill à <strong>context load élevé</strong> demande : des IDs de bases
+    Notion, des IDs de canaux Slack, la structure des dossiers Drive, des règles
+    métier sur les statuts. Sans ce contexte, Claude ne peut pas exécuter —
+    ou il hallucine les IDs manquants.
+  </p>
+
+  <p>
+    La solution que tu connais déjà : les fichiers <code>reference/*.md</code>
+    — une source de vérité stable que le skill lit en étape 0. Le context load
+    élevé n'est pas un problème : c'est pour ça que les reference files existent.
+  </p>
+
+  <p>
+    Implication pour l'invocation : un skill à context load élevé <em>convient</em>
+    au model-invoked — Claude gère lui-même la complexité du contexte, c'est
+    exactement son rôle. Tu n'as pas à mémoriser les IDs Notion.
+  </p>
+
+  <!-- ─── 3. COGNITIVE LOAD ─────────────────────────────────────────────── -->
+  <h2>3. Cognitive load</h2>
+
+  <p>
+    Le cognitive load est la charge mentale que le skill fait peser sur
+    <em>toi</em> : savoir quand l'appeler, comment le formuler, dans quel
+    contexte il est approprié.
+  </p>
+
+  <p>
+    Un skill à <strong>cognitive load élevé</strong> nécessite que tu te
+    souviennes de son nom exact, que tu saches à quel moment il est
+    pertinent, et que tu le formules avec les bons paramètres.
+    C'est de la friction — et elle s'accumule quand tu as 10 skills différents.
+  </p>
+
+  <p>
+    La solution : la description comme clé d'invocation. Si le skill est
+    model-invoked et que sa description contient les mots que tu utilises
+    naturellement, Claude fait le lien à ta place. Le cognitive load
+    disparaît — tu parles comme tu penses, Claude convoque le bon outil.
+  </p>
+
+  <!-- ─── 4. LA DESCRIPTION COMME CLÉ D'INVOCATION ─────────────────────── -->
+  <h2>4. La description comme clé d'invocation</h2>
+
+  <p>
+    Quand un skill est model-invoked, Claude lit toutes les descriptions
+    de skills disponibles et cherche celle qui correspond le mieux à
+    l'intention qu'il a détectée dans la conversation.
+  </p>
+
+  <p>
+    C'est là que les leading words de la leçon 10 prennent leur deuxième
+    dimension. "Triage" dans la description ne sert pas seulement à décrire
+    le skill — c'est le <strong>pont sémantique</strong> entre ta façon
+    de parler et le déclenchement du skill.
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">Description sans ancrage</div>
+      <div class="compare-body">
+        <code>"Produit le brief hebdomadaire MZD et déclenche des actions
+sur les blocages détectés."</code><br /><br />
+        Si tu dis "qu'est-ce qui bloque cette semaine ?" — Claude ne fait
+        pas forcément le lien. Les mots "brief" et "hebdomadaire" ne sont
+        pas dans ta question.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Description avec leading words</div>
+      <div class="compare-body">
+        <code>"Weekly MZD triage — fetch context from Notion/Slack/Drive,
+triage items by urgency (🔴/🟡/🟢), dispatch alerts on blockers."</code><br /><br />
+        Si tu dis "fais un triage de ce qui bloque" — "triage" est dans
+        la description. Claude propose le skill immédiatement.
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 5. LE GARDE-FOU DES SIDE EFFECTS ─────────────────────────────── -->
+  <h2>5. Le garde-fou des side effects</h2>
+
+  <p>
+    Model-invoked est puissant — mais un skill avec des side effects
+    (écriture dans Notion, message Slack, modification de fichiers)
+    ne devrait <em>jamais</em> se déclencher sans intention explicite.
+  </p>
+
+  <p>
+    La règle Matt Pocock :
+  </p>
+
+  <div class="callout">
+    <strong>Side effects = user-invoked par défaut</strong><br /><br />
+    Un skill qui <em>lit</em> peut être model-invoked — Claude reconnaît
+    le besoin et fetche.<br />
+    Un skill qui <em>écrit, envoie, ou modifie</em> doit être user-invoked —
+    tu confirmes explicitement avant que Claude agisse.
+  </div>
+
+  <p>
+    Pourquoi ? Parce que "je veux un triage des tâches" et "envoie des
+    alertes Slack à l'équipe" sont deux intentions très différentes.
+    Claude peut reconnaître la première sans être autorisé à faire la seconde.
+  </p>
+
+  <p>
+    La solution pour <code>brief-hebdo-actif</code> : il a des side effects
+    (Notion + Slack). Il reste donc <strong>user-invoked</strong> — tu l'appelles
+    délibérément. Mais sa description contient des leading words pour qu'une
+    fois que tu l'appelles, Claude l'exécute avec précision.
+  </p>
+
+  <!-- ─── 6. MATRICE DE DÉCISION ────────────────────────────────────────── -->
+  <h2>6. Matrice de décision</h2>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Profil du skill</th><th>Mode recommandé</th><th>Pourquoi</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Lecture seule, context load élevé, fréquent</td>
+        <td><strong>Model-invoked</strong></td>
+        <td>Claude gère la complexité, tu parles naturellement</td>
+      </tr>
+      <tr>
+        <td>Side effects (écriture, envoi, modification)</td>
+        <td><strong>User-invoked</strong></td>
+        <td>L'intention doit être explicite avant d'agir</td>
+      </tr>
+      <tr>
+        <td>Skill rare, contexte très spécifique</td>
+        <td><strong>User-invoked</strong></td>
+        <td>Le déclenchement accidentel serait plus coûteux que la friction</td>
+      </tr>
+      <tr>
+        <td>Skill méta (améliore d'autres skills)</td>
+        <td><strong>User-invoked</strong></td>
+        <td>Modifie des fichiers — confirmation requise</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ─── 7. APPLICATION À IMPROVE-SKILL ──────────────────────────────────── -->
+  <h2>7. Ce que ça implique pour <code>improve-skill</code></h2>
+
+  <p>
+    Le skill qu'on va construire en leçon 14 — <code>improve-skill</code>
+    — est un skill méta : il lit les learning records, analyse un skill cible,
+    et propose (ou applique) des améliorations.
+  </p>
+
+  <p>
+    Son profil :
+  </p>
+
+  <ul>
+    <li>Context load élevé — il doit lire tous les learning records</li>
+    <li>Side effects potentiels — il peut modifier un SKILL.md</li>
+    <li>Usage délibéré — tu sais quand tu veux auditer un skill</li>
+  </ul>
+
+  <p>
+    Conclusion : <strong>user-invoked</strong>, mais avec une description
+    en leading words pour que l'invocation soit naturelle quand tu la fais :
+  </p>
+
+  <pre><code>description: >
+  Audit a skill against learned patterns (leading words, completion
+  criteria, failure modes) and propose targeted improvements.
+  Run when a skill feels bloated, brittle, or hard to trigger.</code></pre>
+
+  <p>
+    "Audit", "leading words", "failure modes" — des mots que tu utilises
+    dans ta conversation. Quand tu dis "j'ai l'impression que mon skill
+    est trop verbeux" — Claude associe ce besoin au skill et te propose
+    de l'invoquer. Tu confirmes. Il agit.
+  </p>
+
+  <!-- ─── QUIZ ─────────────────────────────────────────────────────────── -->
+  <h2>Quiz</h2>
+
+  <!-- Q1 -->
+  <div class="quiz-block" id="q1">
+    <p class="quiz-question">
+      Tu construis un skill qui lit les 5 derniers messages d'un canal Slack
+      et en fait un résumé. Quel mode d'invocation est le plus adapté ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q1', true)">
+        Model-invoked — lecture seule, context load gérable,
+        et la description "summarize Slack channel" peut matcher
+        naturellement l'intention de l'utilisateur
+      </button>
+      <button class="quiz-option" onclick="answer('q1', false)">
+        User-invoked — parce qu'il accède à Slack, donc c'est risqué
+      </button>
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Ni l'un ni l'autre — ce skill est trop simple pour nécessiter un mode
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q1-feedback"></p>
+  </div>
+
+  <!-- Q2 -->
+  <div class="quiz-block" id="q2">
+    <p class="quiz-question">
+      Pourquoi <code>brief-hebdo-actif</code> reste user-invoked malgré
+      une description optimisée en leading words ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Parce qu'il a un context load trop élevé pour être model-invoked
+      </button>
+      <button class="quiz-option" onclick="answer('q2', true)">
+        Parce qu'il a des side effects — il crée des tickets Notion et
+        envoie des messages Slack. Ces actions doivent être déclenchées
+        avec une intention explicite, pas automatiquement
+      </button>
+      <button class="quiz-option" onclick="answer('q2', false)">
+        Parce que les leading words dans la description ne fonctionnent
+        qu'en user-invoked
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q2-feedback"></p>
+  </div>
+
+  <!-- Q3 -->
+  <div class="quiz-block" id="q3">
+    <p class="quiz-question">
+      À quoi servent les leading words dans la description d'un skill
+      user-invoked, si c'est quand même toi qui l'invoques ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Ils ne servent à rien dans ce cas — les leading words sont utiles
+        seulement en model-invoked
+      </button>
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Ils accélèrent l'exécution du skill une fois déclenché
+      </button>
+      <button class="quiz-option" onclick="answer('q3', true)">
+        Ils créent un pont sémantique : quand tu utilises ces mots dans
+        la conversation ("je veux faire un triage"), Claude reconnaît
+        l'intention et te propose d'invoquer le skill — tu confirmes,
+        il agit. L'invocation reste explicite mais le rappel est automatique
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q3-feedback"></p>
+  </div>
+
+  <!-- ─── CE QU'ON A APPRIS ─────────────────────────────────────────────── -->
+  <h2>Ce qu'on a appris dans cette leçon</h2>
+
+  <ul>
+    <li>
+      <strong>Model-invoked</strong> — Claude déclenche le skill en
+      reconnaissant un pattern ; clé d'invocation = la description
+    </li>
+    <li>
+      <strong>User-invoked</strong> — tu déclenches explicitement ;
+      la description guide l'exécution, pas l'invocation
+    </li>
+    <li>
+      <strong>Context load élevé → model-invoked OK</strong> —
+      Claude absorbe la complexité à ta place
+    </li>
+    <li>
+      <strong>Side effects → user-invoked obligatoire</strong> —
+      écriture, envoi, modification doivent être confirmés
+    </li>
+    <li>
+      <strong>Les leading words dans la description</strong> créent
+      un pont sémantique même en user-invoked : Claude reconnaît l'intention
+      et propose l'invocation, tu confirmes
+    </li>
+    <li>
+      <strong><code>improve-skill</code></strong> (leçon 14) sera
+      user-invoked — context load élevé mais side effects sur les SKILL.md
+    </li>
+  </ul>
+
+  <!-- ─── NAVIGATION ───────────────────────────────────────────────────── -->
+  <nav class="lesson-nav">
+    <a href="0012-failure-modes.html">← Leçon 12 : Failure modes</a>
+    <span class="lesson-nav-current">Leçon 13</span>
+    <span class="lesson-nav-next">Leçon 14 (à venir)</span>
+  </nav>
+
+</article>
+
+<script>
+  const feedback = {
+    q1: {
+      ok: 'Exact. Lecture seule = pas de side effects. Le risque d\'un déclenchement accidentel est faible — le pire qui peut arriver est un résumé Slack non sollicité, pas un message envoyé à l\'équipe. Et une description bien construite ("summarize recent Slack activity") peut matcher naturellement "quoi de neuf sur Slack ?". C\'est le profil idéal pour le model-invoked.',
+      ko: 'Non. Accéder à Slack en lecture n\'est pas un side effect. Un side effect est une action qui modifie l\'état du monde extérieur : envoyer un message, créer un ticket, modifier un fichier. Lire des messages Slack ne modifie rien — le skill peut donc être model-invoked sans risque.'
+    },
+    q2: {
+      ok: 'Exact. Les side effects de brief-hebdo-actif sont réels et visibles : un ticket Notion est créé, un message Slack est envoyé à l\'équipe. Ces actions ne doivent pas se déclencher parce que tu as mentionné "les tâches de la semaine" en passant. L\'intention doit être délibérée. User-invoked est la seule option sûre pour les skills qui agissent sur le monde.',
+      ko: 'Non. Le context load élevé ne dicte pas le mode d\'invocation — les reference files résolvent ce problème. Et les leading words dans la description fonctionnent dans les deux modes (ils ancrent l\'exécution dans le corps, et l\'invocation dans la description). La raison est plus simple : brief-hebdo-actif crée des tickets et envoie des messages Slack. Ces side effects requièrent une intention explicite.'
+    },
+    q3: {
+      ok: 'Exact. Le pont sémantique fonctionne même en user-invoked. Tu dis "je veux faire un triage des tâches cette semaine" — Claude reconnaît "triage" dans la description de brief-hebdo-actif, et peut te dire "je vois que tu veux un triage — tu veux que j\'utilise le skill brief-hebdo-actif ?". Tu confirmes. L\'invocation reste explicite, mais le rappel est automatique. Sans leading words dans la description, tu aurais à te souvenir toi-même du nom du skill au bon moment.',
+      ko: 'Non. Les leading words dans la description ont deux fonctions distinctes selon le mode. En model-invoked, ils déclenchent seuls. En user-invoked, ils créent un pont sémantique : Claude reconnaît l\'intention et te propose le skill, mais tu confirmes avant qu\'il agisse. Dans les deux cas, ils réduisent le cognitive load — la différence est qui fait le dernier geste.'
+    }
+  };
+
+  function answer(questionId, isCorrect) {
+    const block = document.getElementById(questionId);
+    block.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = true);
+    const fb = document.getElementById(questionId + '-feedback');
+    fb.classList.add('visible');
+    fb.textContent = isCorrect ? feedback[questionId].ok : feedback[questionId].ko;
+    fb.classList.toggle('correct', isCorrect);
+    fb.classList.toggle('wrong', !isCorrect);
+  }
+</script>
+</body>
+</html>
