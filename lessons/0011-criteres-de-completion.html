@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leçon 11 — Critères de complétion</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+<article class="lesson">
+
+  <p class="lesson-meta">Leçon 11 · Claude Code × MZD</p>
+  <h1>Critères de complétion</h1>
+  <p class="lesson-subtitle">
+    "Continue quand…" — la phrase qui empêche Claude de sauter des étapes,
+    et pourquoi sa formulation change tout.
+  </p>
+
+  <!-- ─── RAPPEL ──────────────────────────────────────────────────────────── -->
+  <h2>Où on en est</h2>
+
+  <p>
+    Tu sais écrire des fetches parallèles, gérer les erreurs source par source,
+    et compresser la prose en leading words. Ton <code>brief-hebdo-actif</code>
+    contient déjà plusieurs "Continue quand…" — mais tu ne les as jamais
+    étudiés comme concept à part entière.
+  </p>
+
+  <p>
+    C'est ce qu'on fait dans cette leçon. Le critère de complétion est le
+    mécanisme qui contrôle <em>quand</em> Claude passe à l'étape suivante.
+    Mal formulé, il rend le skill fragile. Bien formulé, il rend le skill
+    robuste — même sous erreur.
+  </p>
+
+  <!-- ─── 1. CE QU'EST UN CRITÈRE DE COMPLÉTION ──────────────────────────── -->
+  <h2>1. La mécanique</h2>
+
+  <p>
+    Un skill est une séquence d'étapes. Entre chaque étape, Claude doit
+    décider : "est-ce que je peux avancer ?" Sans indication explicite,
+    il <em>suppose</em> — et sa supposition par défaut est optimiste :
+    il avance dès qu'il a quelque chose à montrer.
+  </p>
+
+  <p>
+    Le critère de complétion est une instruction qui remplace cette supposition
+    par une condition explicite. C'est toujours la même structure :
+  </p>
+
+  <pre><code>Continue quand [condition vérifiable].</code></pre>
+
+  <p>
+    Quand la condition est atteinte — et seulement quand elle est atteinte —
+    Claude passe à l'étape suivante. C'est une <strong>barrière</strong> :
+    elle bloque l'avancement jusqu'à ce que le travail soit réellement terminé.
+  </p>
+
+  <!-- ─── 2. LES DEUX FORMULATIONS ─────────────────────────────────────────── -->
+  <h2>2. La formulation fragile vs la formulation robuste</h2>
+
+  <p>
+    Il existe deux façons courantes d'écrire un critère de complétion.
+    L'une est fragile. L'autre est robuste.
+  </p>
+
+  <div class="compare">
+    <div class="compare-col bad">
+      <div class="compare-header">Formulation fragile</div>
+      <div class="compare-body">
+        <code>"Continue quand les réponses sont disponibles."</code><br /><br />
+        Suppose que toutes les sources répondent.
+        Si Notion est en erreur, la condition n'est jamais satisfaite.
+        Claude attend — ou pire, improvise pour "débloquer" la situation.
+      </div>
+    </div>
+    <div class="compare-col good">
+      <div class="compare-header">Formulation robuste</div>
+      <div class="compare-body">
+        <code>"Continue quand toutes les tentatives sont terminées,
+qu'elles aient réussi ou non."</code><br /><br />
+        La condition couvre l'échec. Dès que chaque source a été tentée
+        — succès ou erreur — Claude avance.
+        Le skill reste en mouvement même en conditions dégradées.
+      </div>
+    </div>
+  </div>
+
+  <p>
+    La différence n'est pas stylistique. C'est une décision de comportement :
+    est-ce que le skill peut avancer sous erreur, ou est-ce qu'il se bloque ?
+  </p>
+
+  <!-- ─── 3. OÙ PLACER LA BARRIÈRE ─────────────────────────────────────────── -->
+  <h2>3. Où placer la barrière</h2>
+
+  <p>
+    Pas toutes les étapes ont besoin d'un critère de complétion. La barrière
+    est utile à trois endroits précis.
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Situation</th><th>Pourquoi une barrière</th><th>Formulation type</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Après un fetch parallèle</strong></td>
+        <td>Claude peut continuer après la première réponse — il faut l'obliger à attendre toutes les tentatives</td>
+        <td><code>Continue quand toutes les tentatives sont terminées, qu'elles aient réussi ou non.</code></td>
+      </tr>
+      <tr>
+        <td><strong>Après une boucle d'actions</strong></td>
+        <td>Claude peut sortir de la boucle trop tôt si un item lui résiste</td>
+        <td><code>Continue quand chaque item [X] a été [action] confirmé.</code></td>
+      </tr>
+      <tr>
+        <td><strong>Avant une étape qui dépend de la précédente</strong></td>
+        <td>Le triage ne peut pas commencer si les données ne sont pas là</td>
+        <td><code>Continue quand chaque item disponible est trié.</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    À l'inverse, pas besoin de barrière entre deux étapes séquentielles
+    simples — "lis ce fichier puis résume-le" n'a pas besoin de
+    "Continue quand la lecture est faite" : la dépendance est implicite
+    et Claude la respecte.
+  </p>
+
+  <!-- ─── 4. LES BARRIÈRES DANS BRIEF-HEBDO-ACTIF ─────────────────────────── -->
+  <h2>4. Les barrières dans <code>brief-hebdo-actif</code></h2>
+
+  <p>
+    Ton skill en contient quatre. Regardons chacune et ce qu'elle protège.
+  </p>
+
+  <pre><code>## Étape 1 — Fetch (en parallèle)
+
+Lance simultanément : Notion + Slack + Drive
+
+Continue quand toutes les tentatives sont terminées,
+qu'elles aient réussi ou non.           ← ① robuste aux erreurs</code></pre>
+
+  <p>
+    ① La plus importante. Sans cette formulation, une source en erreur
+    bloquerait tout le skill. "Qu'elles aient réussi ou non" est la
+    clause de robustesse — ajoutée à la leçon 9.
+  </p>
+
+  <pre><code>## Étape 2 — Triage
+
+Triage chaque item disponible…
+
+Continue quand chaque item disponible est trié.   ← ②</code></pre>
+
+  <p>
+    ② "Disponible" est le mot clé : si une source est absente, ses items
+    sont absents aussi — la barrière n'attend pas ce qui n'existe pas.
+  </p>
+
+  <pre><code>## Étape 3 — Vérification idempotente
+
+Avant toute action sur un item 🔴, appelle notion-search…
+
+Continue quand chaque item 🔴 a été vérifié.      ← ③</code></pre>
+
+  <p>
+    ③ Protège l'étape 4 : le dispatch ne peut commencer que si chaque
+    blocage a été contrôlé. Évite d'agir sur un item qui a déjà un ticket.
+  </p>
+
+  <pre><code>## Étape 4 — Dispatch
+
+Dispatch chaque 🔴 non idempotent : notion-create-pages + slack_send_message
+
+Continue quand chaque 🔴 a un ticket Notion ET
+un message Slack confirmés.              ← ④</code></pre>
+
+  <p>
+    ④ Double condition : les deux actions doivent réussir, pas seulement une.
+    "Confirmés" signifie que Claude doit attendre la réponse de chaque appel
+    outil avant de considérer l'item traité.
+  </p>
+
+  <!-- ─── 5. BARRIÈRE MANQUANTE ─────────────────────────────────────────────── -->
+  <h2>5. Que se passe-t-il sans barrière</h2>
+
+  <p>
+    Sans critère de complétion, Claude applique sa heuristique par défaut :
+    avancer dès qu'il estime avoir assez d'information. Ce comportement
+    produit trois pièges.
+  </p>
+
+  <div class="callout callout-warn">
+    <strong>Piège 1 — Complétion prématurée</strong><br />
+    Claude sort de la boucle après 2 items sur 5 parce qu'il juge avoir
+    "suffisamment traité" le problème. Les 3 derniers items ne sont jamais
+    vus.
+  </div>
+
+  <div class="callout callout-warn">
+    <strong>Piège 2 — Dépendance non respectée</strong><br />
+    Claude commence le triage avant que le fetch Drive soit terminé.
+    Il triage avec les données Notion + Slack, ignore le CR CA — et ne
+    le mentionne pas, parce que personne ne lui a dit d'attendre.
+  </div>
+
+  <div class="callout callout-warn">
+    <strong>Piège 3 — Attente infinie</strong><br />
+    La formulation fragile "Continue quand les réponses sont disponibles"
+    bloque si une source est en erreur — la condition ne sera jamais
+    satisfaite. Claude peut relancer le fetch indéfiniment, ou s'arrêter
+    sans produire de brief.
+  </div>
+
+  <!-- ─── 6. ÉCRIRE SA PROPRE BARRIÈRE ─────────────────────────────────────── -->
+  <h2>6. Comment écrire une bonne barrière</h2>
+
+  <p>
+    Trois questions à se poser pour chaque étape :
+  </p>
+
+  <ol>
+    <li>
+      <strong>Est-ce que l'étape suivante dépend du résultat de celle-ci ?</strong>
+      Si oui → barrière nécessaire.
+    </li>
+    <li>
+      <strong>L'étape peut-elle partiellement échouer ?</strong>
+      (fetch multi-sources, boucle sur plusieurs items)
+      Si oui → la formulation doit inclure "qu'elles aient réussi ou non"
+      ou "chaque item [X] confirmé".
+    </li>
+    <li>
+      <strong>La condition est-elle vérifiable sans ambiguïté ?</strong>
+      "Continue quand c'est fait" — trop vague. Claude décide seul ce
+      que "fait" signifie. "Continue quand chaque item 🔴 a un ticket
+      Notion ET un message Slack confirmés" — vérifiable.
+    </li>
+  </ol>
+
+  <!-- ─── QUIZ ─────────────────────────────────────────────────────────── -->
+  <h2>Quiz</h2>
+
+  <!-- Q1 -->
+  <div class="quiz-block" id="q1">
+    <p class="quiz-question">
+      Tu écris un skill qui envoie un message Slack pour chacun des
+      5 blocages détectés. Sans barrière, que risques-tu ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Claude enverra les messages en désordre (Slack 5 avant Slack 1)
+      </button>
+      <button class="quiz-option" onclick="answer('q1', true)">
+        Claude peut considérer "la boucle terminée" après 2 ou 3 messages
+        et passer à l'étape suivante sans traiter les blocages restants
+      </button>
+      <button class="quiz-option" onclick="answer('q1', false)">
+        Claude enverra le même message 5 fois pour le premier blocage
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q1-feedback"></p>
+  </div>
+
+  <!-- Q2 -->
+  <div class="quiz-block" id="q2">
+    <p class="quiz-question">
+      Quelle formulation est robuste aux erreurs de source ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q2', false)">
+        "Continue quand Notion, Slack et Drive ont répondu."
+      </button>
+      <button class="quiz-option" onclick="answer('q2', true)">
+        "Continue quand toutes les tentatives sont terminées, qu'elles
+        aient réussi ou non."
+      </button>
+      <button class="quiz-option" onclick="answer('q2', false)">
+        "Continue quand tu as assez d'information pour produire le brief."
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q2-feedback"></p>
+  </div>
+
+  <!-- Q3 -->
+  <div class="quiz-block" id="q3">
+    <p class="quiz-question">
+      Dans <code>brief-hebdo-actif</code>, pourquoi la barrière de l'étape 2
+      dit "chaque item <em>disponible</em>" plutôt que "chaque item" ?
+    </p>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Pour que Claude aille plus vite en ignorant les items difficiles
+      </button>
+      <button class="quiz-option" onclick="answer('q3', true)">
+        Parce que si une source est manquante, ses items n'existent pas —
+        "disponible" adapte la condition à ce qui a été fetché, sans
+        attendre l'impossible
+      </button>
+      <button class="quiz-option" onclick="answer('q3', false)">
+        Pour être compatible avec les outils Notion qui peuvent retourner null
+      </button>
+    </div>
+    <p class="quiz-feedback" id="q3-feedback"></p>
+  </div>
+
+  <!-- ─── CE QU'ON A APPRIS ─────────────────────────────────────────────── -->
+  <h2>Ce qu'on a appris dans cette leçon</h2>
+
+  <ul>
+    <li>
+      <strong>Le critère de complétion</strong> remplace la supposition
+      optimiste de Claude par une condition explicite — il bloque l'avancement
+      jusqu'à ce que le travail soit réellement terminé
+    </li>
+    <li>
+      <strong>Formulation robuste</strong> — "quand toutes les tentatives sont
+      terminées, qu'elles aient réussi ou non" couvre l'échec ;
+      "quand les réponses sont disponibles" bloque sur erreur
+    </li>
+    <li>
+      <strong>Trois endroits clés</strong> — après un fetch parallèle,
+      après une boucle d'actions, avant une étape qui dépend de la précédente
+    </li>
+    <li>
+      <strong>La condition doit être vérifiable</strong> — "c'est fait" est
+      trop vague ; "chaque item 🔴 a un ticket ET un message confirmés" est
+      vérifiable sans ambiguïté
+    </li>
+    <li>
+      <strong>Sans barrière</strong> : complétion prématurée, dépendance
+      ignorée, ou attente infinie — trois pièges distincts
+    </li>
+  </ul>
+
+  <!-- ─── NAVIGATION ───────────────────────────────────────────────────── -->
+  <nav class="lesson-nav">
+    <a href="0010-leading-words.html">← Leçon 10 : Leading words</a>
+    <span class="lesson-nav-current">Leçon 11</span>
+    <span class="lesson-nav-next">Leçon 12 (à venir)</span>
+  </nav>
+
+</article>
+
+<script>
+  const feedback = {
+    q1: {
+      ok: 'Exact. Sans barrière après une boucle, Claude applique sa heuristique optimiste : il avance quand il estime avoir "suffisamment traité" la tâche. Sur 5 items, il peut en traiter 2 ou 3 et considérer que c\'est fait. Les blocages restants ne reçoivent ni ticket Notion ni message Slack. La barrière "Continue quand chaque 🔴 a un ticket ET un message confirmés" force le traitement complet.',
+      ko: 'Non. L\'ordre et la duplication ne sont pas les risques principaux. Le vrai danger est la complétion prématurée : Claude sort de la boucle trop tôt, convaincu d\'avoir terminé alors que certains items n\'ont pas été traités. C\'est un comportement silencieux — le brief a l\'air complet mais des blocages sont ignorés.'
+    },
+    q2: {
+      ok: 'Exact. "Qu\'elles aient réussi ou non" est la clause de robustesse. Elle signifie que Claude avance dès que chaque source a été tentée — succès ou erreur. La condition est toujours atteignable, même quand Notion ou Drive est indisponible. Les deux autres formulations ont des défauts : la première bloque si une source échoue, la troisième laisse Claude décider seul ce que "assez" signifie.',
+      ko: 'Non. La formulation "ont répondu" suppose une réponse positive — si Notion est en erreur, la condition n\'est jamais satisfaite. "Tu as assez d\'information" est trop vague — Claude décide seul ce que ça signifie et peut avancer trop tôt. Seule la formulation "tentatives terminées, qu\'elles aient réussi ou non" est robuste aux erreurs.'
+    },
+    q3: {
+      ok: 'Exact. Si Drive est indisponible, ses items n\'existent pas dans le contexte du skill. "Chaque item" sans qualificatif pourrait laisser Claude chercher des items qui ne peuvent pas exister — une barrière inatteignable. "Chaque item disponible" adapte la condition à la réalité : on triage ce qui a été fetché, pas ce qui aurait dû être fetché. C\'est cohérent avec la gestion des erreurs de la leçon 9.',
+      ko: 'Non. "Disponible" n\'est pas un raccourci de performance ni une particularité des outils Notion. C\'est une décision de robustesse : la condition de complétion doit être atteignable même quand certaines sources ont échoué. Sans "disponible", Claude pourrait bloquer indéfiniment à attendre des items qui n\'existeront jamais.'
+    }
+  };
+
+  function answer(questionId, isCorrect) {
+    const block = document.getElementById(questionId);
+    block.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = true);
+    const fb = document.getElementById(questionId + '-feedback');
+    fb.classList.add('visible');
+    fb.textContent = isCorrect ? feedback[questionId].ok : feedback[questionId].ko;
+    fb.classList.toggle('correct', isCorrect);
+    fb.classList.toggle('wrong', !isCorrect);
+  }
+</script>
+</body>
+</html>
